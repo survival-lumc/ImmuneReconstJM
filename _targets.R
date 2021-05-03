@@ -1,5 +1,10 @@
 library(targets)
 library(tarchetypes)
+library(future)
+library(future.callr)
+
+# See https://books.ropensci.org/targets/hpc.html#future for parallelizing
+plan(callr)
 
 # Set target-specific options such as packages.
 tar_option_set(
@@ -36,7 +41,43 @@ list(
       prepare_JM_data(dat_merged, "CD8_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + trans3 + trans4 - 1
     )
+  ),
+  tar_target(
+    CD8_model_Inter,
+    fit_indiv_JM(
+      prepare_JM_data(dat_merged, "CD8_abs_log", admin_cens_time = 7),
+      fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
+    )
+  ),
+  tar_target(
+    CD4_model_noInter,
+    fit_indiv_JM(
+      prepare_JM_data(dat_merged, "CD4_abs_log", admin_cens_time = 7),
+      fform = ~ trans2 + trans3 + trans4 - 1
+    )
+  ),
+  tar_target(
+    CD4_model_Inter,
+    fit_indiv_JM(
+      prepare_JM_data(dat_merged, "CD4_abs_log", admin_cens_time = 7),
+      fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
+    )
+  ),
+  tar_target(
+    NK_model_noInter,
+    fit_indiv_JM(
+      prepare_JM_data(dat_merged, "NK_abs_log", admin_cens_time = 7),
+      fform = ~ trans2 + trans3 + trans4 - 1
+    )
+  ),
+  tar_target(
+    NK_model_Inter,
+    fit_indiv_JM(
+      prepare_JM_data(dat_merged, "NK_abs_log", admin_cens_time = 7),
+      fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
+    )
   )
+  # Try fitting bivariate CD4 & CD8 model with JMbayes2
 )
 
 
