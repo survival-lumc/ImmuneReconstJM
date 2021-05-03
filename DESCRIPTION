@@ -29,10 +29,12 @@ Authors@R: c(
   )
 Description: R repository for the immune reconstitution project, where the use of
   a joint model will be explored.
-License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Imports: 
-    data.table
+    data.table,
+    ggplot2,
+    tarchetypes,
+    targets

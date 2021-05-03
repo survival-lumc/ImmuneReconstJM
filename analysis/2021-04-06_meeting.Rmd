@@ -1,0 +1,61 @@
+---
+title: "Joint model CD8 counts"
+author: "Ed Bonneville"
+date: "7-4-2021"
+output: 
+  html_document:
+    df_print: kable
+    toc: yes
+    toc_float: 
+      smooth_scroll: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Test
+
+```{r cars}
+tar_load(dat_merged)
+
+as.data.frame(head(dat_merged))
+```
+
+## Proposed models
+
+**Longitudinal sub-model:**
+
+\begin{align*}
+  \text{log(CD8)} \sim \text{ATG} \times \text{Spline(Time)} + \text{CMV (Patient)},
+\end{align*}
+
+with $\text{Spline(Time)}$ being a flexible, natural *cubic* spline. Patient-specific spline parameters (three random effects)
+
+**Competing risks sub-model:**
+
+\begin{align*}
+  \text{(1) DLI} &\sim \text{SCT (pre-2010)} + \text{Disease Risk} + \text{log(CD8)}^*, \\
+  \text{(2) Relapse} &\sim \text{ATG} + \text{Disease Risk} + \text{log(CD8)}^*, \\
+  \text{(3) Non-Relapse Failure: other} &\sim \text{ATG} + \text{log(CD8)}^*, \\
+  \text{(4) Non-Relapse Failure: GVHD} &\sim \text{log(CD8)}^*, 
+\end{align*}
+
+with $\text{log(CD8)}^*$ = "true" *current value* of log(CD8) cell counts.
+
+## Other settings
+
+- Restrict follow-up to 1 year post-HSCT
+
+## Problems
+
+- Remark about ATG not even having a contrast for GVHD endpoint, try excluding for now
+- Contrast formulation, cannot do transition specific covars
+
+## Tasks 
+
+- Run JM as per https://github.com/drizopoulos/JMbayes/issues/39 , try making plots
+- 
+

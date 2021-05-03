@@ -14,6 +14,7 @@ library(nlme)
 library(survival)
 library(JM)
 library(data.table)
+library(mstate)
 
 
 theme_set(theme_bw(base_size = 14))
@@ -47,6 +48,9 @@ full_dat <- data.table::merge.data.table(
 
 factors <- which(sapply(full_dat, is.factor))
 full_dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
+
+#
+saveRDS(full_dat, file = "data/merged-data.rds")
 
 
 # Fit an initial JM -------------------------------------------------------
