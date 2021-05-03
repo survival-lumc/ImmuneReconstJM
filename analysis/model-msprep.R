@@ -105,6 +105,10 @@ model.matrix(~ strata(trans) - 1, data = coxCRfit$model)
 # vs:
 model.matrix(~ strata(trans), data = coxCRfit$model)
 
+# +
+model.matrix(~ ATG.2 + ATG.2:(strata(trans) - 1), data = coxCRfit$model) %>%  View()
+
+
 # See: https://github.com/drizopoulos/JMbayes2/blob/b6088dad58f6e4ad0fbd2b7353d4d1dc3fbfc07a/Development/Dev_Local_GP/MS_CR/Competing_Risks_Reproduce.R
 
 # Fit mixed model (fit simple linear one for now)

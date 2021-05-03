@@ -32,12 +32,5 @@ prepare_raw_data <- function(lymphocytes, variables) {
     as.numeric(SCTyear < 2010), levels = c(0, 1), labels = c("post_2010", "pre_2010")
   )]
 
-  # # Make other endpoint with DLI as (nuisance) competing event
-  # merged_dat[, endpoint4_s_dli := ifelse(
-  #   grepl(x = endpoint_specify, pattern = "(DLI)"),
-  #   "censored_DLI",
-  #   as.character(endpoint4_s)
-  # )]
-
   return(merged_dat)
 }
