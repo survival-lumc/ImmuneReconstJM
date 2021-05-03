@@ -76,7 +76,8 @@ prepare_JM_data <- function(merged_data,
 }
 
 #' Fit model for one cell count
-fit_indiv_JM <- function(datasets,
+fit_indiv_JM <- function(long_outcome,
+                         datasets,
                          fform = ~ trans2 + trans3 + trans4 - 1) {
 
   # - Prep mstate
@@ -123,12 +124,21 @@ fit_indiv_JM <- function(datasets,
     model = TRUE
   )
 
-  lmeFit <- nlme::lme(
-    CD8_abs_log ~ splines::ns(intSCT2_5, 3) * ATG + VCMVPAT_pre,
-    #random = list(IDAA = pdDiag(form = ~ ns(intSCT2_2, 3))),
-    random = ~ splines::ns(intSCT2_5, 3) | IDAA,
-    control = nlme::lmeControl(opt = "optim"),
-    data = datasets$long
+  form <- stats::reformulate(
+    response = long_outcome,
+    termlabels = "splines::ns(intSCT2_5, 3) * ATG + VCMVPAT_pre"
+  )
+
+  # Need to use do.call to evaluate arguments, otherwise this fails
+  lmeFit <- do.call(
+    nlme::lme,
+    list(
+      "fixed" = form,
+      #random = list(IDAA = pdDiag(form = ~ ns(intSCT2_2, 3))),
+      "random" = ~ splines::ns(intSCT2_5, 3) | IDAA,
+      "control" = nlme::lmeControl(opt = "optim"),
+      "data" = datasets$long
+    )
   )
 
   # Prep functional form

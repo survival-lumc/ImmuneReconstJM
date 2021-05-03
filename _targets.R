@@ -38,20 +38,23 @@ list(
   tar_target(
     CD8_model_noInter,
     fit_indiv_JM(
-      prepare_JM_data(dat_merged, "CD8_abs_log", admin_cens_time = 7),
+      long_outcome = "CD8_abs_log",
+      datasets = prepare_JM_data(dat_merged, "CD8_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + trans3 + trans4 - 1
     )
   ),
   tar_target(
     CD8_model_Inter,
     fit_indiv_JM(
-      prepare_JM_data(dat_merged, "CD8_abs_log", admin_cens_time = 7),
+      long_outcome = "CD8_abs_log",
+      datasets = prepare_JM_data(dat_merged, "CD8_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
     )
   ),
   tar_target(
     CD4_model_noInter,
     fit_indiv_JM(
+      long_outcome = "CD4_abs_log",
       prepare_JM_data(dat_merged, "CD4_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + trans3 + trans4 - 1
     )
@@ -59,6 +62,7 @@ list(
   tar_target(
     CD4_model_Inter,
     fit_indiv_JM(
+      long_outcome = "CD4_abs_log",
       prepare_JM_data(dat_merged, "CD4_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
     )
@@ -66,6 +70,7 @@ list(
   tar_target(
     NK_model_noInter,
     fit_indiv_JM(
+      long_outcome = "NK_abs_log",
       prepare_JM_data(dat_merged, "NK_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + trans3 + trans4 - 1
     )
@@ -73,11 +78,13 @@ list(
   tar_target(
     NK_model_Inter,
     fit_indiv_JM(
+      long_outcome = "NK_abs_log",
       prepare_JM_data(dat_merged, "NK_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
     )
   )
   # Try fitting bivariate CD4 & CD8 model with JMbayes2
+  # See https://github.com/drizopoulos/JMbayes2/blob/29a4f72e192d7847686432501f6116b381e32764/Development/Dev_Local_GP/MS_CR/Competing_Risks_Reproduce.R
 )
 
 
