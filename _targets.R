@@ -18,7 +18,8 @@ tar_option_set(
     "ggplot2",
     "mstate",
     "nlme",
-    "kableExtra"
+    "kableExtra",
+    "ggrepel"
   )
 )
 

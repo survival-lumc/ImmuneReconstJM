@@ -75,7 +75,7 @@ prepare_JM_data <- function(merged_data,
   return(datasets)
 }
 
-#' Fit model for one cell count
+#' Fit model for one cell type
 fit_indiv_JM <- function(long_outcome,
                          datasets,
                          fform = ~ trans2 + trans3 + trans4 - 1) {
@@ -160,6 +160,9 @@ fit_indiv_JM <- function(long_outcome,
   return(JMfit)
 }
 
+#' Summarises event submodel of joint model
+#'
+#' (Only works when no interaction in function form)
 summarise_event_submodel <- function(JMfit,
                                      digits = 3) {
 
