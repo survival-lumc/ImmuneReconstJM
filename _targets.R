@@ -1,3 +1,4 @@
+# Pipeline workhorse packages
 library(targets)
 library(tarchetypes)
 library(future)
@@ -9,13 +10,15 @@ plan(callr)
 # Set target-specific options such as packages.
 tar_option_set(
   packages = c(
+    "here",
     "data.table",
     "magrittr",
     "JM",
     "JMbayes2",
     "ggplot2",
     "mstate",
-    "nlme"
+    "nlme",
+    "kableExtra"
   )
 )
 
@@ -82,9 +85,8 @@ list(
       prepare_JM_data(dat_merged, "NK_abs_log", admin_cens_time = 7),
       fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
     )
-  )
-  # Try fitting bivariate CD4 & CD8 model with JMbayes2
-  # See https://github.com/drizopoulos/JMbayes2/blob/29a4f72e192d7847686432501f6116b381e32764/Development/Dev_Local_GP/MS_CR/Competing_Risks_Reproduce.R
+  ),
+  tarchetypes::tar_render(analysis_summary, path = "analysis/analysis-summary.Rmd")
 )
 
 

@@ -1,5 +1,5 @@
 # Run all models
-#tar_make()
+tar_make()
 
 # Visualise
 tar_visnetwork()

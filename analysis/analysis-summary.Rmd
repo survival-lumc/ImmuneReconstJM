@@ -1,7 +1,7 @@
 ---
-title: "Joint model CD8 counts"
+title: "Immune reconstitution joint modelling"
 author: "Ed Bonneville"
-date: "7-4-2021"
+date: "`r Sys.setenv(LANG = 'en_US.UTF-8'); format(Sys.Date(), '%d %B %Y')`"
 output: 
   html_document:
     df_print: kable
@@ -13,18 +13,117 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = here::here())
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  out.width = "100%", 
+  warning = FALSE, 
+  message = FALSE
+)
+
+options(knitr.kable.NA = '', scipen=999)
+
+# Load libraries
+library(ggplot2)
+library(data.table)
+library(magrittr)
+library(kableExtra)
+library(ggrepel)
+
+# Source in helpers
+source("R/individual-cell-models.R")
+
+# Prep ggplot2 labellers
+atg_labs <- as_labeller(x = c("noATG" = "No ATG", "yesATG" = "ATG"))
+cmv_labs <- as_labeller(
+  x = c("Negative" = "Patient CMV: negative", "Positive" = "Patient CMV: positive")
+)
 ```
 
-## Test
 
-```{r cars}
+```{r data_read, echo=FALSE}
+# Read-in merged (raw data)
 tar_load(dat_merged)
 
-as.data.frame(head(dat_merged))
+# Get wide and long formats
+datasets <- prepare_JM_data(
+  merged_data = dat_merged, 
+  cells = paste0(c("NK", "CD4", "CD8"), "_abs_log"), 
+  admin_cens_time = 7
+)
+
+# Make a newdata to predict later
+newdat <- expand.grid(
+  "ATG" = levels(datasets$wide$ATG),
+  "VCMVPAT_pre" = levels(datasets$wide$VCMVPAT_pre),
+  "intSCT2_5" = seq(0.1, 6, by = 0.1)
+)
 ```
 
-## Proposed models
+# Descriptives
+
+# Models
+
+```{r load_mods}
+tar_load(CD8_model_noInter)
+tar_load(CD8_model_Inter)
+tar_load(CD4_model_noInter)
+tar_load(CD4_model_Inter)
+tar_load(NK_model_noInter)
+tar_load(NK_model_Inter)
+
+# Put into lists
+ls_mods_noInter <- list(
+  "CD4" = CD4_model_noInter, 
+  "CD8" = CD8_model_noInter,
+  "NK" = NK_model_noInter
+)
+
+ls_mods_Inter <- list(
+  "CD4" = CD4_model_Inter, 
+  "CD8" = CD8_model_Inter,
+  "NK" = NK_model_Inter
+)
+
+# Make the marginal predictions
+preds_df_noInter <- data.table::rbindlist(
+  lapply(ls_mods_noInter, function(mod) {
+    JM::predict.jointModel(
+      mod,
+      newdata = newdat,
+      type = "Marginal",
+      idVar = "IDAA",
+      returnData = TRUE,
+      interval = "confidence"
+    )
+  }),
+  idcol = "cell_type"
+)
+
+preds_df_Inter <- data.table::rbindlist(
+  lapply(ls_mods_Inter, function(mod) {
+    JM::predict.jointModel(
+      mod,
+      newdata = newdat,
+      type = "Marginal",
+      idVar = "IDAA",
+      returnData = TRUE,
+      interval = "confidence"
+    )
+  }),
+  idcol = "cell_type"
+)
+
+# Prep ATG labels
+by_vars <- c("cell_type", "ATG", "VCMVPAT_pre")
+preds_df_noInter[intSCT2_5 == max(intSCT2_5), label := ifelse(
+  ATG == "noATG", "ALT", "ALT + \n ATG"
+), by = by_vars]
+```
+
+## CD8 joint model {.tabset}
+
+### Specification
 
 **Longitudinal sub-model:**
 
@@ -37,7 +136,7 @@ with $\text{Spline(Time)}$ being a flexible, natural *cubic* spline. Patient-spe
 **Competing risks sub-model:**
 
 \begin{align*}
-  \text{(1) DLI} &\sim \text{SCT (pre-2010)} + \text{Disease Risk} + \text{log(CD8)}^*, \\
+  \text{(1) DLI} &\sim \text{SCT (pre-2010)} + \text{Disease Risk}, \\
   \text{(2) Relapse} &\sim \text{ATG} + \text{Disease Risk} + \text{log(CD8)}^*, \\
   \text{(3) Non-Relapse Failure: other} &\sim \text{ATG} + \text{log(CD8)}^*, \\
   \text{(4) Non-Relapse Failure: GVHD} &\sim \text{log(CD8)}^*, 
@@ -45,17 +144,216 @@ with $\text{Spline(Time)}$ being a flexible, natural *cubic* spline. Patient-spe
 
 with $\text{log(CD8)}^*$ = "true" *current value* of log(CD8) cell counts.
 
-## Other settings
+### Event submodel 
 
-- Restrict follow-up to 1 year post-HSCT
+```{r cd8_nointer_table}
+summarise_event_submodel(CD8_model_noInter) %>% 
+  kableExtra::kbl(format = "html") %>%
+  kable_paper("striped", full_width = F) %>%
+  pack_rows("Cell. intervention", 1, 2) %>%
+  pack_rows("Relapse", 3, 5) %>%
+  pack_rows("NRF: Other", 6, 7) %>%
+  pack_rows("NRF: GVHD", 8, 8)
+```
 
-## Problems
+### Predicted trajectories
 
-- Remark about ATG not even having a contrast for GVHD endpoint, try excluding for now
-- Contrast formulation, cannot do transition specific covars
+```{r cd8_traject}
+preds_df_noInter[cell_type == "CD8"] %>%
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray", 
+    alpha = 0.5, 
+    col = NA
+  ) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") + 
+  geom_label_repel(
+    aes(label = label), 
+    fontface = "bold",
+    na.rm = TRUE, 
+    hjust = 0,
+    direction = "y",
+    nudge_x = 0.5
+  ) + 
+  facet_wrap(facets = ~ VCMVPAT_pre, labeller = labeller(VCMVPAT_pre = cmv_labs)) +
+  labs(x = "Time since alloHCT (months)", y = "CD8 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  coord_cartesian(xlim = c(0, 7.5)) +
+  scale_color_brewer(palette = "Paired")
+```
 
-## Tasks 
+## CD4 joint model {.tabset}
 
-- Run JM as per https://github.com/drizopoulos/JMbayes/issues/39 , try making plots
-- 
+### Specification
+
+**Longitudinal sub-model:**
+
+\begin{align*}
+  \text{log(CD4)} \sim \text{ATG} \times \text{Spline(Time)} + \text{CMV (Patient)},
+\end{align*}
+
+with $\text{Spline(Time)}$ being a flexible, natural *cubic* spline. Patient-specific spline parameters (three random effects)
+
+**Competing risks sub-model:**
+
+\begin{align*}
+  \text{(1) DLI} &\sim \text{SCT (pre-2010)} + \text{Disease Risk}, \\
+  \text{(2) Relapse} &\sim \text{ATG} + \text{Disease Risk} + \text{log(CD4)}^*, \\
+  \text{(3) Non-Relapse Failure: other} &\sim \text{ATG} + \text{log(CD4)}^*, \\
+  \text{(4) Non-Relapse Failure: GVHD} &\sim \text{log(CD4)}^*, 
+\end{align*}
+
+with $\text{log(CD4)}^*$ = "true" *current value* of log(CD4) cell counts.
+
+### Event submodel 
+
+```{r cd4_nointer_table}
+summarise_event_submodel(CD4_model_noInter) %>% 
+  kableExtra::kbl(format = "html") %>%
+  kable_paper("striped", full_width = F) %>%
+  pack_rows("Cell. intervention", 1, 2) %>%
+  pack_rows("Relapse", 3, 5) %>%
+  pack_rows("NRF: Other", 6, 7) %>%
+  pack_rows("NRF: GVHD", 8, 8)
+```
+
+### Predicted trajectories
+
+```{r cd4_traject}
+preds_df_noInter[cell_type == "CD4"] %>%
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray", 
+    alpha = 0.5, 
+    col = NA
+  ) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  geom_label_repel(
+    aes(label = label), 
+    fontface = "bold",
+    na.rm = TRUE, 
+    hjust = 0,
+    direction = "y",
+    nudge_x = 0.5
+  ) + 
+  facet_wrap(facets = ~ VCMVPAT_pre, labeller = labeller(VCMVPAT_pre = cmv_labs)) +
+  labs(x = "Time since alloHCT (months)", y = "CD4 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  coord_cartesian(xlim = c(0, 7.5)) +
+  scale_color_brewer(palette = "Paired")
+```
+
+## NK joint model {.tabset}
+
+### Specification
+
+**Longitudinal sub-model:**
+
+\begin{align*}
+  \text{log(NK)} \sim \text{ATG} \times \text{Spline(Time)} + \text{CMV (Patient)},
+\end{align*}
+
+with $\text{Spline(Time)}$ being a flexible, natural *cubic* spline. Patient-specific spline parameters (three random effects)
+
+**Competing risks sub-model:**
+
+\begin{align*}
+  \text{(1) DLI} &\sim \text{SCT (pre-2010)} + \text{Disease Risk}, \\
+  \text{(2) Relapse} &\sim \text{ATG} + \text{Disease Risk} + \text{log(NK)}^*, \\
+  \text{(3) Non-Relapse Failure: other} &\sim \text{ATG} + \text{log(NK)}^*, \\
+  \text{(4) Non-Relapse Failure: GVHD} &\sim \text{log(NK)}^*, 
+\end{align*}
+
+with $\text{log(NK)}^*$ = "true" *current value* of log(NK) cell counts.
+
+### Event submodel 
+
+```{r nk_nointer_table}
+summarise_event_submodel(NK_model_noInter) %>% 
+  kableExtra::kbl(format = "html") %>%
+  kable_paper("striped", full_width = F) %>%
+  pack_rows("Cell. intervention", 1, 2) %>%
+  pack_rows("Relapse", 3, 5) %>%
+  pack_rows("NRF: Other", 6, 7) %>%
+  pack_rows("NRF: GVHD", 8, 8)
+```
+
+### Predicted trajectories
+
+```{r nk_traject}
+preds_df_noInter[cell_type == "NK"] %>%
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray", 
+    alpha = 0.5, 
+    col = NA
+  ) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  geom_label_repel(
+    aes(label = label), 
+    fontface = "bold",
+    na.rm = TRUE, 
+    hjust = 0,
+    direction = "y",
+    nudge_x = 0.5
+  ) + 
+  facet_wrap(facets = ~ VCMVPAT_pre, labeller = labeller(VCMVPAT_pre = cmv_labs)) +
+  labs(x = "Time since alloHCT (months)", y = "NK cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  coord_cartesian(xlim = c(0, 7.5)) +
+  scale_color_brewer(palette = "Paired")
+```
+
+
+## All cell trajectories
+
+(Using models without interactions)
+
+```{r all_traject}
+preds_df_noInter %>%
+  ggplot(
+    aes(
+      x = intSCT2_5,
+      y = pred,
+      ymin = low,
+      ymax = upp,
+      group = cell_type,
+      col = cell_type
+    )
+  ) +
+  geom_ribbon(fill = "gray", alpha = 0.5, col = NA) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  facet_grid(
+    facets = ATG ~ VCMVPAT_pre, 
+    labeller = labeller(VCMVPAT_pre = cmv_labs, ATG = atg_labs)
+  ) +
+  labs(x = "Time since alloHCT (months)", y = "Cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_bw() +
+  coord_cartesian(xlim = c(0, 6)) +
+  scale_color_brewer("Cell type", palette = "Paired") +
+  guides(colour = guide_legend(reverse = TRUE))
+```
 
