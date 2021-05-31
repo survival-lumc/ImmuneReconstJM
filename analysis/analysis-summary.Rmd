@@ -250,6 +250,7 @@ with $\text{log(CD8)}^*$ = "true" *current value* of log(CD8) cell counts.
 ### Event submodel 
 
 ```{r cd8_nointer_table}
+
 summarise_event_submodel(CD8_model_noInter) %>% 
   kableExtra::kbl(format = "html") %>%
   kable_paper("striped", full_width = F) %>%

@@ -200,8 +200,8 @@ summarise_event_submodel <- function(JMfit,
   data.table::setnames(dt_edit, new = c("Event", "Coefficient", "log(HR)", "SE", "p-value"))
   dt_edit[, "HR [95% CI]" := paste0(
     as.character(round(exp(`log(HR)`), 3)), " [",
-    as.character(round(exp(`log(HR)` - pnorm(0.975) * SE), 3)), ";",
-    as.character(round(exp(`log(HR)` + pnorm(0.975) * SE), 3)), "]"
+    as.character(round(exp(`log(HR)` - qnorm(0.975) * SE), 3)), ";",
+    as.character(round(exp(`log(HR)` + qnorm(0.975) * SE), 3)), "]"
   )]
   dt_edit[, Event := NULL]
 

@@ -14,6 +14,7 @@ tar_option_set(
     "data.table",
     "magrittr",
     "JM",
+    "JMbayes",
     "JMbayes2",
     "ggplot2",
     "mstate",
