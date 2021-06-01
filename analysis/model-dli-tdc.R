@@ -1,10 +1,15 @@
-
+library(data.table)
+library(JMbayes2)
+library(ggalluvial)
+library(ggsankey)
+library(tidyverse)
+library(ggforce)
 
 source("data-raw/prepare-raw-data.R")
 source("R/individual-cell-models.R")
 
-variables_raw <- data.table::data.table(readRDS("data-raw/2021-05-27_v5/variables.rds"))
-lymphocytes_raw <- data.table::data.table(readRDS("data-raw/2021-05-27_v5/lymphocytes.rds"))
+variables_raw <- data.table::data.table(readRDS("data-raw/2021-05-31_v6/variables.rds"))
+lymphocytes_raw <- data.table::data.table(readRDS("data-raw/2021-05-31_v6/lymphocytes.rds"))
 dat_merged <- prepare_raw_data(lymphocytes_raw, variables_raw)
 
 
@@ -21,9 +26,10 @@ vars <- c(
   "uDLI_s",
   "sec_endpoint",
   "sec_endpoint_s",
+  "sec_endpoint_specify",
   "TCDmethod",
   "hirisk",
-  "SCTyear_2010",
+  "SCT_May2010",
   "VCMVPAT_pre"
 )
 
@@ -52,11 +58,87 @@ dat[, ATG := factor(
 # Make the wide dataset
 dat_wide <- data.table::dcast(
   data = dat,
-  formula = IDAA + SCTyear_2010 + hirisk + ATG + VCMVPAT_pre +
+  formula = IDAA + SCT_May2010 + hirisk + ATG + VCMVPAT_pre +
     endpoint6_s + endpoint6 + uDLI + uDLI_s + endpoint_specify6 ~ .,
   fun = length
 )
 data.table::setnames(dat_wide, old = ".", new = "n_measurements")
+
+
+
+# Descriptives ------------------------------------------------------------
+
+dat_wide_trans <- data.table::dcast(
+  data = dat_merged,
+  formula = IDAA + endpoint5_s + uDLI_s + sec_endpoint_s +
+    sec_endpoint_specify + endpoint_specify5 + endpoint6_s ~ .,
+  fun = length
+)
+data.table::setnames(dat_wide_trans, old = ".", new = "n_measurements")
+trans_dat <- dat_wide_trans[, .(n = .N), by = c(
+  "endpoint5_s", "endpoint_specify5", "sec_endpoint_specify"
+)]
+trans_dat_long <- gather_set_data(data = trans_dat, x = 1:3)
+
+ggplot(trans_dat_long, aes(x, id = id, split = y, value = n)) +
+  geom_parallel_sets(alpha = 0.3, axis.width = 0.1) +
+  geom_parallel_sets_axes(axis.width = 0.1) +
+  geom_parallel_sets_labels(colour = 'white')
+
+trans_dat %>%
+  ggplot(aes(y = n, axis1 = uDLI_s, axis2 = endpoint6_s, axis3 = endpoint_specify6)) +
+  geom_alluvium(aes(fill = endpoint_specify6)) +
+  guides(fill = FALSE) +
+  geom_stratum() +
+  geom_text(stat = "stratum", aes(label = after_stat(stratum)))
+
+df <- mtcars %>%
+  make_long(cyl, vs, am, gear, carb) %>%
+  arrange(x)
+
+df_test <- trans_dat %>%
+  make_long(endpoint5_s, endpoint_specify5, sec_endpoint_specify, value = n)
+
+df_test <- dat_wide_trans %>%
+  make_long(endpoint5_s, endpoint_specify5, sec_endpoint_specify) %>%
+  filter(!(is.na(node) & is.na(next_x) & is.na(next_node)))
+
+ggplot(
+  df_test,
+  aes(
+    x = x,
+    next_x = next_x,
+    node = node,
+    next_node = next_node,
+    fill = factor(node),
+    label = node
+  )
+) +
+  geom_sankey(flow.alpha = .6, node.color = "gray30") +
+  geom_sankey_label(size = 3, color = "white", fill = "gray40") +
+  scale_fill_viridis_d() +
+  theme_sankey(base_size = 18) +
+  labs(x = NULL) +
+  theme(legend.position = "none")
+
+
+
+# Alluvial version --------------------------------------------------------
+
+trans_dat <- dat_wide_trans[, .(n = .N), by = c(
+  "endpoint6_s", #"endpoint_specify5",
+  "endpoint5_s"
+)]
+
+ggplot(trans_dat,
+       aes(y = n, axis1 = endpoint5_s, axis2 = endpoint6_s)) +
+  geom_alluvium(aes(fill = endpoint6_s), width = 1/12) +
+  geom_stratum(width = 1/12, fill = "gray", color = "black") +
+  geom_label(stat = "stratum", aes(label = after_stat(stratum))) +
+  #geom_text(aes(label = n), stat = "flow", size = 3) +
+  scale_x_discrete(limits = c("Pre-DLI", "Post-DLI"), expand = c(.05, .05)) +
+  scale_fill_brewer(type = "qual", palette = "Set1") +
+  theme(legend.position = "none")
 
 # Attempt with JM ---------------------------------------------------------
 
