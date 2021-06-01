@@ -4,6 +4,7 @@
 
 
 library(data.table)
+library(JM)
 library(JMbayes)
 library(JMbayes2)
 library(ggalluvial)
@@ -42,7 +43,16 @@ vars <- c(
 )
 
 dat <- dat_merged[, ..vars]
+dat[endpoint6 >= 24, ':=' (
+  endpoint6 = 24,
+  endpoint6_s = "censored"
+)]
+
 dat <- dat[intSCT2_5 < endpoint6]
+
+# Check this later: (more than one measurment at single time point)
+#dat <- dat[, .SD[!duplicated(intSCT2_5)], by = IDAA]
+
 dat <- dat[, .SD[.N >= 2], by = "IDAA"]
 dat <- dat[!(is.na(CD4_abs_log) | is.na(CD8_abs_log))]
 dat[, ATG := factor(
@@ -63,6 +73,9 @@ dat[, endpoint6_s := factor(
   ),
   labels = c("cens", "cell_interv", "REL", "NRF_other", "NRF_gvhd")
 )]
+
+# Drop IDAA levels
+dat[, IDAA := droplevels(IDAA)]
 
 
 # Make the wide dataset
@@ -199,15 +212,17 @@ mod_cox <- coxph(
   x = TRUE,
   model = TRUE
 )
+mod_cox
 
 # Try relative time
 dat[, t_from_dli := round((uDLI <= intSCT2_5) * (intSCT2_5 - uDLI), 4)]
 
 # Try same with DAT (see supplement)
+#dat <- dat[intSCT2_5 < 0]
 lmeFit <- lme(
   fixed = CD4_abs_log ~ ns(intSCT2_5, 3) * ATG + VCMVPAT_pre,
   random = ~ ns(intSCT2_5, 3) | IDAA,
-  control = lmeControl(opt = "optim"),
+  control = lmeControl(opt = "optim"),#, msMaxIter = 100),
   data = dat
 )
 
@@ -241,17 +256,16 @@ ggtraceplot(jointFit, "gammas") #survival
 
 mixed_fits <- mvglmer(
   list(
-    CD4_abs_log ~ ns(intSCT2_5, 3) * ATG + VCMVPAT_pre + (ns(intSCT2_5, 3) | IDAA),
     CD8_abs_log ~ ns(intSCT2_5, 3) * ATG + VCMVPAT_pre + (ns(intSCT2_5, 3) | IDAA)
   ),
   data = dat,
-  families = list(gaussian, gaussian)
+  families = list(gaussian)
 )
 
-jointFit_gvhd <- mvJointModelBayes(
-  mixed_fits,
+jointFit_gvhd <- jointModelBayes(
+  lmeFit,
   mod_cox,
-  timeVar = "intSCT2_5"#,
+  timeVar = "intSCT2_5",
   #Interactions = list("CD4_abs_log" = ~ DLI, "CD8_abs_log" = ~ DLI)
 )
 summary(jointFit_gvhd)
@@ -363,6 +377,7 @@ mod_comp <- coxph(
     DLI.2 + strata(trans),
   cluster = IDAA,
   model = TRUE,
+  x = TRUE,
   data = JM_msdat_expand
 )
 
@@ -375,6 +390,10 @@ mod_comp
 # With JMbayes2
 ff <- list(
   "CD4_abs_log" = ~ value(CD4_abs_log) + value(CD4_abs_log):(strata(trans) - 1)
+) # Add interaction
+
+ff2 <- list(
+  "CD4_abs_log" = ~ DLI * (value(CD4_abs_log) + value(CD4_abs_log):(strata(trans) - 1))
 )
 
 jointFit_jmb2 <- jm(
@@ -386,3 +405,98 @@ jointFit_jmb2 <- jm(
 )
 
 summary(jointFit_jmb2)
+
+
+
+# Try again with JM -------------------------------------------------------
+
+
+lmeFit
+mod_cox
+
+mod_cox <- coxph(
+  Surv(tstart, tstop, status) ~ DLI + cluster(IDAA),
+  data = df_long,
+  x = TRUE,
+  model = TRUE
+)
+
+# Need to arrange data otherwise
+dat[, "gvhd_s" := as.numeric(endpoint6_s == "NRF_gvhd")]
+dat2 <- data.frame(dat[, c("IDAA", "CD4_abs_log", "uDLI_s", "uDLI", "intSCT2_5",
+              "gvhd_s", "endpoint6")])
+
+dat2$start <- dat2$intSCT2_5
+
+splitID <- split(dat2[c("start", "endpoint6")], dat2$IDAA)
+dat2$stop <- unlist(lapply(splitID,
+                          function(d) c(d$start[-1], d$endpoint6[1]) ))
+
+dat2$event <- with(dat2, ave(gvhd_s, IDAA,
+                           FUN = function (x) c(rep(0, length(x)-1), x[1]) ))
+dat2$dli <- as.numeric(dat2$stop > dat2$uDLI)
+mod_cox2 <- coxph(
+  Surv(start, stop, event) ~ dli + cluster(IDAA),
+  data = dat2,
+  x = TRUE,
+  model = TRUE
+)
+
+mod_cox2
+
+jm_mod <- jointModel(
+  lmeFit,
+  mod_cox,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH", # Christ almighty is this important
+  interFact = list("value" = ~ DLI),
+  iter.EM = 200
+)
+summary(jm_mod)
+
+# With comprisk - wont work because of counting notation?
+jm_mod2 <- jointModel(
+  lmeFit,
+  mod_comp,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH", # Christ almighty is this important
+  interFact = list("value" = ~ strata(trans) - 1),
+  iter.EM = 200
+)
+summary(jm_mod)
+
+newdat <- expand.grid(
+  "ATG" = levels(dat_wide$ATG),
+  "VCMVPAT_pre" = levels(dat_wide$VCMVPAT_pre),
+  "intSCT2_5" = seq(0.1, 12, by = 0.1)
+)
+
+library(ggrepel)
+JM::predict.jointModel(
+  jm_mod,
+  newdata = newdat,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+) %>%
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 0.5,
+    col = NA
+  ) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") +
+  facet_wrap(facets = ~ VCMVPAT_pre) +
+  labs(x = "Time since alloHCT (months)", y = "CD8 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  coord_cartesian(xlim = c(0, 14)) +
+  scale_color_brewer(palette = "Paired")
