@@ -7,10 +7,8 @@ library(data.table)
 library(JM)
 library(JMbayes)
 library(JMbayes2)
-library(ggalluvial)
 library(ggsankey)
 library(tidyverse)
-library(ggforce)
 library(mstate)
 
 source("data-raw/prepare-raw-data.R")
@@ -27,6 +25,9 @@ vars <- c(
   "IDAA",
   "CD4_abs_log",
   "CD8_abs_log",
+  "CD3_abs_log",
+  "CD19_abs_log",
+  "NK_abs_log",
   "intSCT2_5",
   "endpoint6",
   "endpoint6_s",
@@ -54,7 +55,7 @@ dat <- dat[intSCT2_5 < endpoint6]
 #dat <- dat[, .SD[!duplicated(intSCT2_5)], by = IDAA]
 
 dat <- dat[, .SD[.N >= 2], by = "IDAA"]
-dat <- dat[!(is.na(CD4_abs_log) | is.na(CD8_abs_log))]
+dat <- dat[!(is.na(CD4_abs_log) | is.na(CD8_abs_log))] # change this
 dat[, ATG := factor(
   ifelse(TCDmethod == "ALT", "noATG", "yesATG"),
   levels = c("noATG", "yesATG")
@@ -161,12 +162,32 @@ dat_flow %>%
 # Longitudinal plots ------------------------------------------------------
 
 
-dat[uDLI_s == "uDLI"] %>%
-  ggplot(aes(intSCT2_5, CD4_abs_log, group = IDAA)) +
-  geom_line(alpha = 0.5) +
-  geom_point(aes(col = post_DLI)) +
-  facet_grid(~ endpoint6_s, scales = "free_x") +
-  theme(legend.position = "none")
+set.seed(1083) # Heterog
+set.seed(1084) # More homog
+dat[uDLI_s == "uDLI"][IDAA %in% sample(IDAA, size = 6, replace = FALSE)] %>%
+  melt.data.table(
+    id.vars = c("post_DLI", "intSCT2_5", "IDAA"),
+    measure.vars = c("CD4_abs_log", "CD8_abs_log", "NK_abs_log"),
+    variable.name = "lymphocyte",
+    value.name = "count"
+  ) %>%
+  ggplot(aes(intSCT2_5, count)) +
+  geom_point(
+    aes(fill = post_DLI),
+    size = 3.5, pch = 21,
+    alpha = 0.8,
+    col = "#359fda",
+    #fill = colorspace::lighten("#359fda", amount = 0.3)
+  ) +
+  geom_path(alpha = 0.25, linetype = "dotted") +
+  facet_grid(IDAA ~ lymphocyte, scales = "free_x") +
+  labs(x = "Time since alloHCT (months)", y = "CD8 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  guides(fill = guide_legend(title = "DLI"))
 
 
 
@@ -374,7 +395,7 @@ JM_msdat_expand <- mstate::expand.covs(
 
 mod_comp <- coxph(
   Surv(Tstart, Tstop, status) ~ hirisk.1 + DLI.1 + ATG.1 +
-    DLI.2 + strata(trans),
+    DLI.2 + strata(trans), # add sct and hirisk.2
   cluster = IDAA,
   model = TRUE,
   x = TRUE,
@@ -462,9 +483,10 @@ jm_mod2 <- jointModel(
   timeVar = "intSCT2_5",
   method = "spline-PH-aGH", # Christ almighty is this important
   interFact = list("value" = ~ strata(trans) - 1),
-  iter.EM = 200
+  #interFact = list("value" = ~ `DLI.1` * (strata(trans) - 1)),
+  iter.EM = 200 # see p.68 rizop book
 )
-summary(jm_mod)
+summary(jm_mod2)
 
 newdat <- expand.grid(
   "ATG" = levels(dat_wide$ATG),
@@ -472,9 +494,8 @@ newdat <- expand.grid(
   "intSCT2_5" = seq(0.1, 12, by = 0.1)
 )
 
-library(ggrepel)
 JM::predict.jointModel(
-  jm_mod,
+  jm_mod2,
   newdata = newdat,
   type = "Marginal",
   idVar = "IDAA",
@@ -498,5 +519,57 @@ JM::predict.jointModel(
   ) +
   theme_minimal() +
   theme(legend.position = "none") +
+  coord_cartesian(xlim = c(0, 14)) +
+  scale_color_brewer(palette = "Paired")
+
+
+
+# Test with inter ---------------------------------------------------------
+
+
+mod_comp$model$trans1 <- as.numeric(mod_comp$model$`strata(trans)` == "trans=1") #rel
+mod_comp$model$trans2 <- as.numeric(mod_comp$model$`strata(trans)` == "trans=2")
+model.matrix(~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 - 1,
+             data = mod_comp$model) %>%  View()
+
+jm_mod3 <- jointModel(
+  lmeFit,
+  mod_comp,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH", # Christ almighty is this important
+  interFact = list("value" = ~ ~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 - 1),
+  iter.EM = 200 # see p.68 rizop book
+)
+
+summary(jm_mod3)
+summary(jm_mod2)
+
+
+JM::predict.jointModel(
+  jm_mod3,
+  newdata = newdat,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+) %>%
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 0.5,
+    col = NA
+  ) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") +
+  facet_wrap(facets = ~ VCMVPAT_pre) +
+  labs(x = "Time since alloHCT (months)", y = "CD8 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  #theme(legend.position = "none") +
   coord_cartesian(xlim = c(0, 14)) +
   scale_color_brewer(palette = "Paired")
