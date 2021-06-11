@@ -157,7 +157,8 @@ dat_flow %>%
   labs(x = NULL) +
   theme(legend.position = "none")
 
-
+ggalluvial::geom
+ggforce::paral
 
 # Longitudinal plots ------------------------------------------------------
 
@@ -538,13 +539,12 @@ jm_mod3 <- jointModel(
   CompRisk = TRUE,
   timeVar = "intSCT2_5",
   method = "spline-PH-aGH", # Christ almighty is this important
-  interFact = list("value" = ~ ~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 - 1),
+  interFact = list("value" = ~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 - 1),
   iter.EM = 200 # see p.68 rizop book
 )
 
 summary(jm_mod3)
-summary(jm_mod2)
-
+#summary(jm_mod2)
 
 JM::predict.jointModel(
   jm_mod3,
