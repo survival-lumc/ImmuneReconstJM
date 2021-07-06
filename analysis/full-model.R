@@ -259,6 +259,81 @@ JM::predict.jointModel(
   scale_color_brewer(palette = "Paired")
 
 
+# Other JM ----------------------------------------------------------------
+
+table(dat_wide$uDLI_s, dat_wide$endpoint6_s)
+
+mod_comp_bis <- coxph(
+  Surv(Tstart, Tstop, status) ~
+    hirisk.1 + ATG.1 + # Relapse submodel
+    DLI.2 + ATG.2 + # GVHD submodel
+    ATG.3 + # NRF_other submodel
+    strata(trans),
+  cluster = IDAA,
+  model = TRUE,
+  x = TRUE,
+  data = JM_msdat_expand
+)
+
+mod_comp_bis
+
+# Set up model matrices of assoc. parameters
+mod_comp_bis$model$trans1 <- as.numeric(mod_comp_bis$model$`strata(trans)` == "trans=1")
+mod_comp_bis$model$trans2 <- as.numeric(mod_comp_bis$model$`strata(trans)` == "trans=2")
+mod_comp_bis$model$trans3 <- as.numeric(mod_comp_bis$model$`strata(trans)` == "trans=3")
+model.matrix(
+  ~ trans1 + trans2 + trans2:DLI.2 + trans3 - 1,
+  data = mod_comp_bis$model
+) %>%  View()
+
+# ---- Run for CD4
+jm_mod_CD4 <- jointModel(
+  lmeObject = long_submodels$CD4_abs_log,
+  survObject = mod_comp_bis,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH",
+  interFact = list(
+    "value" = ~  trans1 + trans2 + trans2:DLI.2 + trans3 - 1
+  ),
+  iter.EM = 200 # see p.68 rizop book
+)
+
+summary(jm_mod_CD4) # note zero implies succesful convergence!
+
+jm_mod_CD4_2 <- jointModel(
+  lmeObject = long_submodels$CD4_abs_log,
+  survObject = mod_comp,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH",
+  interFact = list(
+    "value" = ~ trans1 + trans2 + trans2:DLI.2 + trans3 - 1
+  ),
+  iter.EM = 200 # see p.68 rizop book
+)
+
+summary(jm_mod_CD4_2)
+jm_mod_CD4_2$coefficients$gammas
+mod_comp$coefficients
+long_submodels$CD4_abs_log$coefficients$fixed
+jm_mod_CD4_2$coefficients$betas
+
+jm_mod_CD8 <- jointModel(
+  lmeObject = long_submodels$CD8_abs_log,
+  survObject = mod_comp_bis,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH",
+  interFact = list(
+    "value" = ~  trans1 + trans2 + trans2:DLI.2 + trans3 - 1
+  ),
+  iter.EM = 200 # see p.68 rizop book
+)
+
+summary(jm_mod_CD8)
+
+
 # Multivariate model with JMbayes2 ----------------------------------------
 
 # With JMbayes2

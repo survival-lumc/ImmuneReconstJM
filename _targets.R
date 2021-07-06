@@ -27,19 +27,27 @@ tar_option_set(
 # Source functions
 source("data-raw/prepare-raw-data.R")
 source("R/individual-cell-models.R")
+source("R/separate-dli-models.R")
 
 # Pipeline
 list(
   tar_target(
     lymphocytes_raw,
-    data.table::data.table(readRDS("data-raw/2021-04-09_v4/lymphocytes.rds"))
+    data.table::data.table(readRDS("data-raw/2021-05-31_v6/lymphocytes.rds"))
   ),
   tar_target(
     variables_raw,
-    data.table::data.table(readRDS("data-raw/2021-04-09_v4/variables.rds"))
+    data.table::data.table(readRDS("data-raw/2021-05-31_v6/variables.rds"))
   ),
   tar_target(dat_merged, prepare_raw_data(lymphocytes_raw, variables_raw)),
-  #tar_target(cell_lines, paste0(c("CD8", "CD4", "NK"), "_abs_log")),
+  tar_target(
+    reference_values,
+    cbind.data.frame(
+      "cell_line" = c("CD3", "CD4", "CD8", "NK", "CD19"),
+      "lower_limit" = c(860, 560, 260, 40, 60),
+      "upper_limit" = c(2490, 1490, 990, 390, 1000)
+    )
+  ),
   tar_target(
     CD8_model_noInter,
     fit_indiv_JM(
@@ -88,6 +96,77 @@ list(
       fform = ~ trans2 + ATG.2:trans2 + trans3 + ATG.3:trans3 + trans4 - 1
     )
   ),
+
+  # Start of sub-pipeline
+  tar_target(
+    datasets,
+    get_datasets(dat_merged)
+  ),
+  tar_target(
+    dli_msdata,
+    prepare_dli_msdata(datasets$wide)
+  ),
+  tar_target(
+    long_submodels,
+    run_longitudinal_submodels(datasets$long)
+  ),
+  tar_target(
+    cox_submodel_all_dli,
+    run_cox_submodel(
+      dli_msdata = dli_msdata,
+      form = Surv(Tstart, Tstop, status) ~
+        hirisk.1 + DLI.1 + ATG.1 + # Relapse submodel
+        DLI.2 + ATG.2 + # GVHD submodel
+        DLI.3 + ATG.3 + # NRF_other submodel
+        strata(trans)
+    )
+  ),
+  tar_target(
+    cox_submodel_no_dli, # Maybe also one with just DLI on gvhd trans
+    run_cox_submodel(
+      dli_msdata = dli_msdata,
+      form = Surv(Tstart, Tstop, status) ~
+        hirisk.1 + ATG.1 + # Relapse submodel
+        ATG.2 + # GVHD submodel
+        ATG.3 + # NRF_other submodel
+        strata(trans)
+    )
+  ),
+  tar_target(
+    CD4_all_dli,
+    run_JM(
+      long_obj = long_submodels$CD4_abs_log,
+      surv_obj = cox_submodel_all_dli,
+      fform = ~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 +
+        trans3 + trans3:DLI.3 - 1
+    )
+  ),
+  tar_target(
+    CD4_all_dli_avfform,
+    run_JM(
+      long_obj = long_submodels$CD4_abs_log,
+      surv_obj = cox_submodel_all_dli,
+      fform = ~ trans1 + trans2 + trans3 - 1
+    )
+  ),
+  tar_target(
+    CD8_all_dli,
+    run_JM(
+      long_obj = long_submodels$CD8_abs_log,
+      surv_obj = cox_submodel_all_dli,
+      fform = ~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 +
+        trans3 + trans3:DLI.3 - 1
+    )
+  ),
+  tar_target(
+    CD8_all_dli_avfform,
+    run_JM(
+      long_obj = long_submodels$CD8_abs_log,
+      surv_obj = cox_submodel_all_dli,
+      fform = ~ trans1 + trans2 + trans3 - 1
+    )
+  ),
+  # Rest of cell-line hereafter, also multivar JMbayes2
   tarchetypes::tar_render(analysis_summary, path = "analysis/analysis-summary.Rmd")
 )
 
