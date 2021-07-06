@@ -46,51 +46,6 @@ CD4_all_dli$coefficients$alpha
 
 confint(CD4_all_dli)
 
-# Joint model just for gvhd -----------------------------------------------
-
-
-
-mod_gvhd <- coxph(Surv(Tstart, Tstop, status) ~
-                    DLI + #hirisk + SCT_May2010 + VCMVPAT_pre +
-                    ATG, data = dli_msdata,
-      subset = (trans == 2), x = TRUE, model = TRUE, cluster = IDAA)
-
-#mod_gvhd$model$DLI <- dli_msdata[dli_msdata$trans == 2, ]$DLI
-
-jm_mod_gvhd <- jointModel(
-  lmeObject = long_submodels$CD4_abs_log,
-  survObject = mod_gvhd,
-  CompRisk = FALSE,
-  timeVar = "intSCT2_5",
-  method = "spline-PH-aGH",
-  interFact = list(
-    "value" = ~ DLI
-  ),
-  iter.EM = 200 # see p.68 rizop book
-)
-
-summary(jm_mod_gvhd)
-mod_gvhd$coefficients
-jm_mod_gvhd$coefficients$gammas
-jm_mod_gvhd$coefficients$alpha
-
-
-jm_mod_gvhd_nointer <- jointModel(
-  lmeObject = long_submodels$CD4_abs_log,
-  survObject = mod_gvhd,
-  CompRisk = FALSE,
-  timeVar = "intSCT2_5",
-  method = "spline-PH-aGH",
-  interFact = NULL,
-  iter.EM = 200 # see p.68 rizop book
-)
-
-mod_gvhd$coefficients
-jm_mod_gvhd_nointer$coefficients$gammas
-jm_mod_gvhd_nointer$coefficients$alpha
-
-
-# CD4 JM: comparing long --------------------------------------------------
 
 long_submodels$CD4_abs_log$coefficients$fixed
 CD4_all_dli$coefficients$betas
@@ -144,6 +99,9 @@ JM::predict.jointModel(
   interval = "confidence"
 ) %>%
   ggplot(aes(x = intSCT2_5, y = pred)) +
+  geom_hline(
+    yintercept = log(c())
+  ) +
   geom_ribbon(
     aes(ymin = low, ymax = upp, group = ATG, col = ATG),
     fill = "gray",
@@ -176,6 +134,7 @@ JM::predict.jointModel(
   interval = "confidence"
 ) %>%
   ggplot(aes(x = intSCT2_5, y = pred)) +
+  geom_hline(yintercept = log(c(260, 990)), linetype = "dashed") +
   geom_ribbon(
     aes(ymin = low, ymax = upp, group = ATG, col = ATG),
     fill = "gray",
@@ -214,3 +173,122 @@ summary(CD4_all_dli)
 CD4_all_dli$coefficients$gammas
 cox_submodel_all_dli$coefficients
 CD4_all_dli$coefficients$alpha
+
+
+
+# Da plot -----------------------------------------------------------------
+
+
+
+dat_long_melt <- melt.data.table(
+  data = datasets$long,
+  id.vars = c("IDAA", "intSCT2_5", "endpoint6_s", "VCMVPAT_pre", "ATG"),
+  variable.name = "cell_type",
+  value.name = "counts",
+  measure.vars = paste0(c("CD4", "CD8"), "_abs_log")
+)
+dat_long_melt[, cell_type := factor(cell_type, labels = c("CD4", "CD8"))]
+
+preds_df_CD4 <- JM::predict.jointModel(
+  CD4_all_dli,
+  newdata = newdat,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+)
+
+preds_df_CD8 <- JM::predict.jointModel(
+  CD8_all_dli,
+  newdata = newdat,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+)
+
+preds_df <- rbindlist(list(preds_df_CD4, preds_df_CD8), idcol = "cell_type")
+preds_df[, cell_type := factor(cell_type, levels = c(1, 2), labels = c("CD4", "CD8"))]
+
+
+# Plot 1: predictions and overlay of endpoints
+preds_df %>%
+  ggplot(aes(x = intSCT2_5, y = pred)) +
+  geom_hline(
+    data = reference_values[cell_type %in% c("CD4", "CD8")],
+    aes(yintercept = log(lower_limit)),
+    linetype = "dotted"
+  ) +
+  geom_hline(
+    data = reference_values[cell_type %in% c("CD4", "CD8")],
+    aes(yintercept = log(upper_limit)),
+    linetype = "dotted"
+  ) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp, group = ATG, col = ATG),
+    fill = "gray",
+    alpha = 0.5,
+    col = NA
+  ) +
+  geom_line(aes(group = ATG, col = ATG), size = 1.5, alpha = 0.75) +
+  labs(x = "Time since alloHCT (months)", y = "Cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_minimal() +
+  scale_color_brewer(palette = "Paired") +
+  ggnewscale::new_scale_colour() +
+  geom_point(
+    data = dat_long_melt[, .SD[.N], by = c("IDAA", "cell_type")],
+    aes(shape = endpoint6_s, colour = endpoint6_s, y = counts)
+    #aes(shape = ATG, colour = endpoint6_s, y = counts)
+  ) +
+  facet_grid(facets = cell_type ~ VCMVPAT_pre)
+
+
+# Raw plots ---------------------------------------------------------------
+
+
+IDAA_samp <- sample(dat_long_melt$IDAA, size = 20, replace = FALSE)
+
+
+tar_load(dat_merged)
+raw_long <- dat_merged %>%
+  melt.data.table(
+    id.vars = c("IDAA", "intSCT2_5", "endpoint6_s", "VCMVPAT_pre"),
+    variable.name = "cell_type",
+    value.name = "counts",
+    measure.vars = paste0(c("CD4", "CD8"), "_abs_log")
+  )
+raw_long <- raw_long[intSCT2_5 <= 24]
+raw_long[, ':=' (
+  cell_type = factor(cell_type, labels = c("CD4", "CD8")),
+  endpoint6_s = factor(
+    endpoint6_s,
+    levels = c(
+      "censored",
+      "7 days after cellular intervention",
+      "relapse",
+      "non-relapse failure: other",
+      "non-relapse failure: GvHD"
+    ),
+    labels = c("cens", "cell_interv", "REL", "NRF_other", "NRF_gvhd")
+  )
+)]
+
+
+raw_long %>%
+  ggplot(aes(intSCT2_5, counts)) +
+  geom_line(aes(group = IDAA, col = IDAA), alpha = 0.5) +
+  geom_point(
+    data = dat_long_melt[, .SD[.N], by = c("IDAA", "cell_type")],
+    aes(y = counts)
+    #aes(shape = ATG, colour = endpoint6_s, y = counts)
+  ) +
+  facet_grid(facets = cell_type ~ endpoint6_s) +
+  theme(legend.position = "none")
+
+# - try multivar model again
+
+# .. then back to Fine-Gray coding..
