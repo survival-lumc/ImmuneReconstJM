@@ -50,25 +50,114 @@ CR_forms <- list(
 )
 
 CR_forms <- list(
-  "CD4_abs_log" = ~ value(CD4_abs_log) * (strata(trans) - 1),
-  "CD8_abs_log" = ~ value(CD8_abs_log) * (strata(trans) - 1)
+  "CD4_abs_log" = ~ value(CD4_abs_log) * DLI * (strata(trans) - 1),
+  "CD8_abs_log" = ~ value(CD8_abs_log) * DLI * (strata(trans) - 1)
 )
 
+# Add to targets pipeline
 jFit_CR <- jm(
   Surv_object = coxCRfit,
   Mixed_objects = list(fm1, fm2),
   time_var = "intSCT2_5",
   functional_forms = CR_forms,
+  data_Surv = coxCRfit$model, # try with this
   n_iter = 6000L,
   n_burnin = 2000L,
-  priors = list("penalty_alphas" = "ridge")
+  priors = list("penalty_alphas" = "ridge", penalty_gammas = "ridge")
 )
 
+# Maybe also uncorrelated random effects
+
 coef(jFit_CR)
-CD4_all_dli_avfform$coefficients$gammas
-CD4_all_dli_avfform$coefficients$alpha
-CD8_all_dli_avfform$coefficients$alpha
+CD4_all_dli$coefficients$gammas
+CD4_all_dli$coefficients$alpha
+CD8_all_dli$coefficients$alpha
 
 
 # Pretty horrid non-covergence
-ggtraceplot(jFit_CR, "alphas", grid = TRUE, gridcols = 3)
+ggtraceplot(jFit_CR, "gammas", grid = TRUE, gridcols = 3)
+ggtraceplot(jFit_CR, "alphas", grid = TRUE, gridcols = 4)
+
+
+
+# Attempt wit data_surv ---------------------------------------------------
+
+
+coxCRfit_bis <- survival::coxph(
+  Surv(Tstart, Tstop, status) ~
+    hirisk.1 + ATG.1 + # Relapse submodel
+    DLI.2 + ATG.2 + # GVHD submodel
+    ATG.3 + # NRF_other submodel
+    strata(trans),
+  data = dli_msdata,
+  x = TRUE,
+  model = TRUE,
+  id = IDAA
+)
+
+dli_msdata$trans1 <- as.numeric(dli_msdata$trans == 1)
+dli_msdata$trans2 <- as.numeric(dli_msdata$trans == 2)
+dli_msdata$trans3 <- as.numeric(dli_msdata$trans == 3)
+
+
+CR_forms_bis <- list(
+  "CD4_abs_log" = ~ value(CD4_abs_log):trans1 + value(CD4_abs_log):trans2 + value(CD4_abs_log):trans3 +
+    value(CD4_abs_log):trans2:DLI.2 - 1,
+  "CD8_abs_log" = ~ value(CD8_abs_log):trans1 + value(CD8_abs_log):trans2 + value(CD8_abs_log):trans3 +
+    value(CD8_abs_log):trans2:DLI.2 - 1
+)
+
+CR_forms_bis <- list(
+  "CD4_abs_log" = ~ (value(CD4_abs_log) + slope(CD4_abs_log)):trans1 +
+    (value(CD4_abs_log) + slope(CD4_abs_log)):trans2 +
+    (value(CD4_abs_log) + slope(CD4_abs_log)):trans3
+    - 1,
+  "CD8_abs_log" = ~ (value(CD8_abs_log) + slope(CD8_abs_log)):trans1 +
+    (value(CD8_abs_log) + slope(CD8_abs_log)):trans2 +
+    (value(CD8_abs_log) + slope(CD8_abs_log)):trans3
+    - 1
+)
+
+# Add to targets pipeline
+# try without penalty, and use different fforms (e.g.slope)
+jFit_CR_bis <- jm(
+  Surv_object = coxCRfit_bis,
+  Mixed_objects = list(fm1, fm2),
+  time_var = "intSCT2_5",
+  functional_forms = CR_forms_bis,
+  data_Surv = dli_msdata, # try with this
+  n_iter = 5000L,
+  n_burnin = 1500L,
+  priors = list("penalty_alphas" = "horseshoe", penalty_gammas = "horseshoe")
+)
+
+jFit_CR_bis
+coef(jFit_CR_bis)
+CD4_all_dli$coefficients$gammas
+CD4_all_dli$coefficients$alpha
+CD8_all_dli$coefficients$alpha
+
+
+# Pretty horrid non-covergence
+ggtraceplot(jFit_CR_bis, "betas", grid = TRUE, gridcols = 4)
+ggtraceplot(jFit_CR_bis, "gammas", grid = TRUE, gridcols = 4)
+ggtraceplot(jFit_CR_bis, "alphas", grid = TRUE, gridcols = 4)
+
+predict(jFit_CR_bis, newdata = datasets$long[IDAA == "221"],
+        times = seq(7, 12, length.out = 51))
+
+newdat <- expand.grid(
+  "ATG" = levels(dat_wide$ATG),
+  "VCMVPAT_pre" = levels(dat_wide$VCMVPAT_pre),
+  "intSCT2_5" = seq(0.1, 24, by = 0.1)
+)
+
+modmat_newdat <- model.matrix(~ ns(intSCT2_5, 3) * ATG + VCMVPAT_pre, data = newdat)
+betas <- drop(summary(jFit_CR_bis)$Outcome1$Mean[-10])
+coefficients(jFit_CR_bis)
+newdat$preds <- modmat_newdat %*% betas
+
+newdat %>%
+  ggplot(aes(intSCT2_5, preds)) +
+  geom_line(aes(col = ATG)) +
+  facet_wrap(~ VCMVPAT_pre)
