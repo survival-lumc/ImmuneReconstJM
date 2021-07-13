@@ -99,40 +99,80 @@ dli_msdata$trans1 <- as.numeric(dli_msdata$trans == 1)
 dli_msdata$trans2 <- as.numeric(dli_msdata$trans == 2)
 dli_msdata$trans3 <- as.numeric(dli_msdata$trans == 3)
 
-
+# Compare this one to JM estimate
 CR_forms_bis <- list(
-  "CD4_abs_log" = ~ value(CD4_abs_log):trans1 + value(CD4_abs_log):trans2 + value(CD4_abs_log):trans3 +
+  "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3) +
     value(CD4_abs_log):trans2:DLI.2 - 1,
-  "CD8_abs_log" = ~ value(CD8_abs_log):trans1 + value(CD8_abs_log):trans2 + value(CD8_abs_log):trans3 +
+  "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans3) +
     value(CD8_abs_log):trans2:DLI.2 - 1
 )
 
-CR_forms_bis <- list(
-  "CD4_abs_log" = ~ (value(CD4_abs_log) + slope(CD4_abs_log)):trans1 +
-    (value(CD4_abs_log) + slope(CD4_abs_log)):trans2 +
-    (value(CD4_abs_log) + slope(CD4_abs_log)):trans3
-    - 1,
-  "CD8_abs_log" = ~ (value(CD8_abs_log) + slope(CD8_abs_log)):trans1 +
-    (value(CD8_abs_log) + slope(CD8_abs_log)):trans2 +
-    (value(CD8_abs_log) + slope(CD8_abs_log)):trans3
-    - 1
+CR_forms_av <- list(
+  "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3) - 1,
+  "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans3) - 1
 )
 
+CR_forms <- list(
+  "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans2:DLI.2 + trans3) - 1,
+  "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans2:DLI.2 + trans3) - 1
+)
+
+# Trans1 value, trans3 value and trans2 pre and post DLI
+assoc_priors <- lapply(CR_forms, function(fform) {
+  cr_form_terms <- terms(fform)
+  n_alphas <- length(attr(cr_form_terms, "term.labels"))
+  diag(5, n_alphas) # precision so sd is 1/5
+})
+
+# Or list of other length
+n_assoc_terms <- sum(
+  vapply(CR_forms, function(fform) {
+    length(attr(terms(fform), "term.labels"))
+  }, FUN.VALUE = integer(1L))
+)
+
+# https://github.com/drizopoulos/JMbayes2/blob/master/R/jm.R
 # Add to targets pipeline
-# try without penalty, and use different fforms (e.g.slope)
+jFit_CR <- jm(
+  Surv_object = coxCRfit_bis,
+  Mixed_objects = list(fm1, fm2),
+  time_var = "intSCT2_5",
+  functional_forms = CR_forms,
+  data_Surv = dli_msdata, # try with this
+  n_iter = 6500L,
+  n_burnin = 1500L,
+  priors = list(
+    Tau_alphas = lapply(seq_len(n_assoc_terms), function(alpha) matrix(data = 2.5))
+  )
+  #priors = list("penalty_alphas" = "ridge", penalty_gammas = "ridge")
+)
+
+
+jFit_CR
+ggtraceplot(jFit_CR, "betas", grid = TRUE, gridcols = 4)
+ggtraceplot(jFit_CR, "gammas", grid = TRUE, gridcols = 4)
+ggtraceplot(jFit_CR, "alphas", grid = TRUE, gridcols = 4)
+
+
 jFit_CR_bis <- jm(
   Surv_object = coxCRfit_bis,
   Mixed_objects = list(fm1, fm2),
   time_var = "intSCT2_5",
-  functional_forms = CR_forms_bis,
-  data_Surv = dli_msdata, # try with this
-  n_iter = 5000L,
-  n_burnin = 1500L,
-  priors = list("penalty_alphas" = "horseshoe", penalty_gammas = "horseshoe")
+  functional_forms = CR_forms,
+  data_Surv = dli_msdata
 )
+
+# Maybe much more informative priors?
 
 jFit_CR_bis
 coef(jFit_CR_bis)
+
+
+
+CD4_all_dli_avfform$coefficients$gammas
+CD4_all_dli_avfform$coefficients$alpha
+CD8_all_dli_avfform$coefficients$alpha
+
 CD4_all_dli$coefficients$gammas
 CD4_all_dli$coefficients$alpha
 CD8_all_dli$coefficients$alpha
