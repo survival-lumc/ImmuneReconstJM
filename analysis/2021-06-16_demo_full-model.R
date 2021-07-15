@@ -250,7 +250,16 @@ preds_df %>%
 # Raw plots ---------------------------------------------------------------
 
 
-IDAA_samp <- sample(dat_long_melt$IDAA, size = 20, replace = FALSE)
+set.seed(1986)
+IDAA_samp <- dat_wide[, .(
+  IDAA_samp = sample(IDAA, size = floor(.N / 3), replace = FALSE)
+), by = "endpoint6_s"][["IDAA_samp"]]
+
+# Try dividing three groups
+IDAA_grps <- dat_wide[, .(
+  IDAA = unique(IDAA),
+  IDAA_grps = sample(seq_len(3), size = length(unique(IDAA)), replace = TRUE, rep(1/3, 3))
+), by = "endpoint6_s"]
 
 
 tar_load(dat_merged)
@@ -277,18 +286,84 @@ raw_long[, ':=' (
   )
 )]
 
+grp <- 1
+raw_long[, highlight_pats := ifelse(IDAA %in% IDAA_grps[IDAA_grps == grp]$IDAA, 1, 0.65)]
 
-raw_long %>%
+p <- raw_long[endpoint6_s != "cell_interv"] %>%
   ggplot(aes(intSCT2_5, counts)) +
-  geom_line(aes(group = IDAA, col = IDAA), alpha = 0.5) +
+  geom_hline(
+    data = reference_values[cell_type %in% c("CD4", "CD8")],
+    aes(yintercept = log(lower_limit)),
+    linetype = "dotted"
+  ) +
+  geom_hline(
+    data = reference_values[cell_type %in% c("CD4", "CD8")],
+    aes(yintercept = log(upper_limit)),
+    linetype = "dotted"
+  ) +
+  geom_line(aes(group = IDAA, col = IDAA, alpha = highlight_pats)) +
   geom_point(
-    data = dat_long_melt[, .SD[.N], by = c("IDAA", "cell_type")],
-    aes(y = counts)
+    data = dat_long_melt[endpoint6_s != "cell_interv", .SD[.N], by = c("IDAA", "cell_type")][
+      , highlight_pats := ifelse(IDAA %in% IDAA_grps[IDAA_grps == grp]$IDAA, 1, 0.6)
+    ],
+    aes(y = counts, alpha = highlight_pats),
+    shape = 4
     #aes(shape = ATG, colour = endpoint6_s, y = counts)
   ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
   facet_grid(facets = cell_type ~ endpoint6_s) +
+  theme_minimal() +
   theme(legend.position = "none")
+
+plotly::ggplotly(p)
 
 # - try multivar model again
 
+p <- raw_long[endpoint6_s != "cell_interv"] %>%
+  ggplot(aes(intSCT2_5, counts)) +
+  geom_hline(
+    data = reference_values[cell_type %in% c("CD4", "CD8")],
+    aes(yintercept = log(lower_limit)),
+    linetype = "dotted"
+  ) +
+  geom_hline(
+    data = reference_values[cell_type %in% c("CD4", "CD8")],
+    aes(yintercept = log(upper_limit)),
+    linetype = "dotted"
+  ) +
+  geom_line(aes(group = IDAA, col = IDAA)) +
+  geom_point(
+    data = dat_long_melt[endpoint6_s != "cell_interv", .SD[.N], by = c("IDAA", "cell_type")][
+      , highlight_pats := ifelse(IDAA %in% IDAA_grps[IDAA_grps == grp]$IDAA, 1, 0.6)
+    ],
+    aes(y = counts, col = IDAA),
+    shape = 4
+    #aes(shape = ATG, colour = endpoint6_s, y = counts)
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  facet_grid(facets = cell_type ~ endpoint6_s) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p
+library(plotly)
+gg <- plotly::ggplotly(p, tooltip = "IDAA")
+plotly::highlight(gg, on = "plotly_hover", dynamic = TRUE)
+
 # .. then back to Fine-Gray coding..
+
+d <- highlight_key(txhousing, ~city)
+p <- ggplot(d, aes(date, median, group = city)) + geom_line() + facet_wrap(~ month)
+gg <- ggplotly(p, tooltip = "city")
+highlight(gg, dynamic = TRUE, color = "red")
+
+
+
+# Full attempt ------------------------------------------------------------
+

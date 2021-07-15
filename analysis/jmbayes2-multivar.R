@@ -95,6 +95,18 @@ coxCRfit_bis <- survival::coxph(
   id = IDAA
 )
 
+coxCRfit_bis <- survival::coxph(
+  Surv(Tstart, Tstop, status) ~
+    hirisk.1 + ATG.1 + DLI.1 + # Relapse submodel
+    DLI.2 + ATG.2 + # GVHD submodel
+    ATG.3 + DLI.3 + # NRF_other submodel
+    strata(trans),
+  data = dli_msdata,
+  x = TRUE,
+  model = TRUE,
+  id = IDAA
+)
+
 dli_msdata$trans1 <- as.numeric(dli_msdata$trans == 1)
 dli_msdata$trans2 <- as.numeric(dli_msdata$trans == 2)
 dli_msdata$trans3 <- as.numeric(dli_msdata$trans == 3)
@@ -115,6 +127,15 @@ CR_forms_av <- list(
 CR_forms <- list(
   "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans2:DLI.2 + trans3) - 1,
   "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans2:DLI.2 + trans3) - 1
+)
+
+CR_forms <- list(
+  "CD4_abs_log" = ~ value(CD4_abs_log):(
+    trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 + trans3 + trans3:DLI.3
+  ) - 1,
+  "CD8_abs_log" = ~ value(CD8_abs_log):(
+    trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 + trans3 + trans3:DLI.3
+  ) - 1
 )
 
 # Trans1 value, trans3 value and trans2 pre and post DLI
@@ -139,19 +160,23 @@ jFit_CR <- jm(
   time_var = "intSCT2_5",
   functional_forms = CR_forms,
   data_Surv = dli_msdata, # try with this
-  n_iter = 6500L,
-  n_burnin = 1500L,
+  n_iter = 12500L,
+  n_burnin = 2500L,
   priors = list(
-    Tau_alphas = lapply(seq_len(n_assoc_terms), function(alpha) matrix(data = 2.5))
+    # Local ridge priors for each alpha ~ N(0, 1/2)
+    Tau_alphas = lapply(seq_len(n_assoc_terms), function(alpha) matrix(data = 2))
   )
-  #priors = list("penalty_alphas" = "ridge", penalty_gammas = "ridge")
 )
 
+# try 4 chains, longer burn-in
+ggdensityplot(jFit_CR, "alphas", grid = TRUE, gridcols = 4)
 
-jFit_CR
-ggtraceplot(jFit_CR, "betas", grid = TRUE, gridcols = 4)
-ggtraceplot(jFit_CR, "gammas", grid = TRUE, gridcols = 4)
-ggtraceplot(jFit_CR, "alphas", grid = TRUE, gridcols = 4)
+coef(jFit_CR)
+CD4_all_dli$coefficients$gammas
+
+ggtraceplot(jFit_CR, "betas", grid = TRUE, gridcols = 5, gridrows = 5)
+ggtraceplot(jFit_CR, "gammas", grid = TRUE, gridcols = 5)
+ggtraceplot(jFit_CR, "alphas", grid = TRUE, gridcols = 4, gridrows = 3)
 
 
 jFit_CR_bis <- jm(
