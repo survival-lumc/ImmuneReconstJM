@@ -1,4 +1,7 @@
-# Pipeline workhorse packages
+# Global pipeline set-up --------------------------------------------------
+
+
+# Workhorse packages
 library(targets)
 library(tarchetypes)
 library(future)
@@ -7,27 +10,33 @@ library(future.callr)
 # See https://books.ropensci.org/targets/hpc.html#future for parallelizing
 plan(callr)
 
-# Set target-specific options such as packages.
-tar_option_set(
-  packages = c(
-    "here",
-    "data.table",
-    "magrittr",
-    "JM",
-    "JMbayes",
-    "JMbayes2",
-    "ggplot2",
-    "mstate",
-    "nlme",
-    "kableExtra",
-    "ggrepel"
-  )
+# All packages used by the projects
+project_pkgs <- c(
+  "checkmate",
+  "data.table",
+  "JM",
+  "JMbayes2",
+  "ggplot2",
+  "mstate",
+  "nlme",
+  "kableExtra",
+  "ggrepel"
 )
+
+tar_option_set(packages = project_pkgs)
+# Uncomment if running scripts interactively:
+# sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE))
+
+
+# Analysis pipeline -------------------------------------------------------
+
 
 # Source functions
 source("data-raw/prepare-raw-data.R")
-source("R/individual-cell-models.R")
-source("R/separate-dli-models.R")
+source("R/submodel-wrappers.R")
+source("R/joint-model-wrappers.R")
+
+
 
 # Pipeline
 list(
@@ -167,9 +176,9 @@ list(
       surv_obj = cox_submodel_all_dli,
       fform = ~ trans1 + trans2 + trans3 - 1
     )
-  ),
+  )#,
   # Rest of cell-line hereafter, also multivar JMbayes2
-  tarchetypes::tar_render(analysis_summary, path = "analysis/analysis-summary.Rmd")
+  #tarchetypes::tar_render(analysis_summary, path = "analysis/analysis-summary.Rmd")
 )
 
 
