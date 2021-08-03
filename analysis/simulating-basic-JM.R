@@ -75,7 +75,7 @@ cbind.data.frame(df_trajectories, "pred" = predict(mod_lmm, df_trajectories)) %>
 
 
 # Fix sample size (larger this time), generate treatment
-n <- 200
+n <- 500
 X <- rbinom(n = n, size = 1, prob = 0.5)
 
 # Same as before (but simplify a little), with addition of association and betas for X
@@ -190,7 +190,7 @@ jointFit <- jointModel(
   lmeObject = lmeFit,
   survObject = coxFit,
   timeVar = "meas_time",
-  method = "weibull-PH-GH" # Assume weibull baseline hazard, more efficient
+  method = "spline-PH-aGH" # Assume weibull baseline hazard, more efficient
 )
 
 summary(jointFit)
