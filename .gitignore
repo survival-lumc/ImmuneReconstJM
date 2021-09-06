@@ -1,3 +1,11 @@
+# Hidden files
 .Rproj.user
-
 .Rhistory
+
+# Folders:
+
+# Ignore data folders, targets cache and past reports kept for convenience
+data-raw/
+data/
+_targets/
+analysis/past-reports/

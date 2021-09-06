@@ -1,6 +1,8 @@
-set.seed(49849)
-n <- 2000
+set.seed(9965884)
+n <- 2500
 n_measurement_pp <- 10
+
+# See https://github.com/drizopoulos/JM/blob/master/R/simulateJM.R
 
 # Intercept makes big difference in root solving
 individual_params <- data.table(
@@ -11,15 +13,23 @@ individual_params <- data.table(
   "t_dli" = runif(n, min = 0, max = 20) # Intermediate event (DLI) time
 )
 
-
+long_params <- list("beta_X" = 0.25, "sigma" = 1)
+surv_params <- list("lambda" = 0.1, "gamma_X" = 0.25,
+                    "gamma_dli" = 0.1,
+                    "alpha" = 0.25, "alpha_dli" = -0.25)
 
 SminU <- function(t, X, intercept, slope, long_params, surv_params, U,
                   t_dli) {
   yt <- intercept + slope * t + long_params$beta_X * X
   yt_dli <- intercept + slope * t_dli + long_params$beta_X * X
 
+  f_cond <- Vectorize(function(s) exp(surv_params$alpha * yt_dli))
+  cond_int <- integrate(f_cond, 0, t_dli)$value
   cond <- -log(U) < surv_params$lambda *
-    exp(surv_params$gamma_X * X + surv_params$alpha * yt_dli) * t_dli
+    exp(surv_params$gamma_X * X + surv_params$alpha * yt_dli) * cond_int
+
+  #cond <- -log(U) < surv_params$lambda *
+  #  exp(surv_params$gamma_X * X + surv_params$alpha * yt_dli) * t_dli
 
   haz <- Vectorize(function(s) {
 
@@ -37,12 +47,10 @@ SminU <- function(t, X, intercept, slope, long_params, surv_params, U,
   cumhaz <- if (cond) {
     surv_params$lambda * exp(surv_params$gamma_X * X + surv_params$alpha * yt) * t
   } else {
-    surv_params$lambda * exp(surv_params$gamma_X * X +
-                               surv_params$alpha * yt +
-                               #(surv_params$alpha + surv_params$alpha_dli) * yt +
-                               surv_params$gamma_dli) * t
-    # surv_params$lambda * exp(surv_params$gamma_X * X + surv_params$alpha * yt) *
-    #   (t_dli + exp(surv_params$gamma_dli) * t - exp(surv_params$gamma_dli) * t_dli)
+
+     surv_params$lambda * exp(surv_params$gamma_X * X + surv_params$alpha * yt) *
+       (t_dli + exp(surv_params$gamma_dli) * t - exp(surv_params$gamma_dli) * t_dli)
+
   }
 
   cumhaz + log(U)
@@ -112,7 +120,7 @@ coxph(
 
 
 measure_times <- individual_params[, .(
-  t_meas = runif(n_measurement_pp, min = 0, max = 100)
+  t_meas = seq(0.1, 15, length.out = n_measurement_pp)
 ), by = "id"][order(id, t_meas)]
 
 dat_long <- merge(measure_times, individual_params, by = "id")
@@ -166,41 +174,3 @@ JM_mod <- jointModel(
 
 summary(JM_mod)
 
-
-# Functions-based ---------------------------------------------------------
-
-# Set-up parameters
-long_params <- list(
-  "beta_X" = 0.25,
-  "sigma" = 1,
-  "B0" = -20,
-  "B1" = 1,
-  "var_b0" = 0.5,
-  "var_b1" = 0.5
-)
-surv_params <- list(
-  "lambda" = 0.1,
-  "gamma_X" = 0.25,
-  "gamma_dli" = 0.25,
-  "alpha" = 0.25,
-  "alpha_dli" = -0.25
-)
-
-generate_dats <- function(n = 2000,
-                          n_measures = 10,
-                          long_params,
-                          surv_params) {
-
-  # Individual parameters
-  individual_params <- data.table(
-    "id" = seq_len(n),
-    "X" = rbinom(n = n, size = 1, prob = 0.5),
-    "intercept" = long_params$B0 + rnorm(n, mean = 0, sd = sqrt(long_params$var_b0)),
-    "slope" = long_params$B1 + rnorm(n, mean = 0, sd = sqrt(long_params$var_b1)),
-    "t_dli" = runif(n, min = 0, max = 20)
-  )
-
-}
-
-dat_wide <- ...
-dat_long <- ...

@@ -1,12 +1,24 @@
+# Meeting 5/08/2021
+
 tar_load(
   c(
     datasets,
     dli_msdata,
     long_submodels,
+    reference_values,
     multivar_allDLI_nointer,
-    multivar_allDLI_inter_penal
+    multivar_allDLI_inter_penal,
+    JM_CD4_allDLI_nointer,
+    JM_CD4_allDLI_inter,
+    JM_CD8_allDLI_nointer
   )
 )
+
+
+
+# Longitudinal trajectories -----------------------------------------------
+
+
 
 dat_wide <- datasets$wide
 newdat <- expand.grid(
@@ -51,37 +63,28 @@ preds_ls <- mapply(
   SIMPLIFY = FALSE
 )
 
-
-df_preds <- rbindlist(preds_ls, idcol = "cell")
+df_preds <- rbindlist(preds_ls, idcol = "cell_type")
 
 ggplot(df_preds, aes(intSCT2_5, pred, group = ATG)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "lightgray", alpha = 0.7) +
   geom_line(aes(col = ATG), size = 1.25) +
-  facet_grid(cell ~ VCMVPAT_pre) +
+  facet_grid(cell_type ~ VCMVPAT_pre) +
+  labs(x = "Time since alloHCT (months)", y = "Cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
   theme_minimal()
 
 
 
-# Check with tar_load -----------------------------------------------------
+# Exploring coefficients --------------------------------------------------
 
 
-
-tar_load(c(JM_CD4_allDLI_nointer, JMbayes2_CD4_allDLI_nointer))
-
-JM_CD4_allDLI_nointer$coefficients$gammas
-JMbayes2_CD4_allDLI_nointer$statistics$Mean$gammas
-
-JM_CD4_allDLI_nointer$coefficients$alpha
-JMbayes2_CD4_allDLI_nointer$statistics$Mean$alphas
-
-
-
-#--
-tar_visnetwork()
-tar_load(JM_CD4_allDLI_inter)
-JM_CD4_allDLI_nointer |> summary()
-JM_CD4_allDLI_inter |> summary()
-tar_load(multivar_allDLI_nointer)
-tar_load(multivar_allDLI_inter_penal)
 multivar_allDLI_nointer
+coef(multivar_allDLI_nointer)
 multivar_allDLI_inter_penal
+
+tar_load(multivar_allDLI_slopeGVHD)
+coef(multivar_allDLI_slopeGVHD)
+coef(multivar_allDLI_nointer)
