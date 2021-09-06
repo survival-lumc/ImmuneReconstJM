@@ -156,10 +156,10 @@ list(
       n_iter = 15000L,
       n_burnin = 5000L
     )
-  )
+  ),
 
   # Rest of cell-line hereafter, also multivar JMbayes2
-  #tarchetypes::tar_render(analysis_summary, path = "analysis/analysis-summary.Rmd")
+  tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
 )
 
 
