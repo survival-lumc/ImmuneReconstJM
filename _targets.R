@@ -25,7 +25,7 @@ project_pkgs <- c(
 tar_option_set(packages = project_pkgs)
 # Uncomment if running scripts interactively:
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE))
-rm(project_pkgs)
+#rm(project_pkgs)
 
 
 # Miscellaneous objects ---------------------------------------------------
@@ -70,7 +70,7 @@ list(
     long_submodels,
     run_longitudinal_submodels(
       datasets$long,
-      which_cells = c("CD4_abs_log", "CD8_abs_log"),
+      which_cells = c("CD4_abs_log", "CD8_abs_log", "CD3_abs_log"),
       df_splines = 4,
       ranef_structure = "diagonal"
     )
@@ -97,69 +97,40 @@ list(
     )
   ),
   tar_target(
-    JM_CD4_allDLI_inter, # this we keep for illustration
+    JM_CD8_allDLI_nointer,
     run_jointModel(
-      long_obj = long_submodels$CD4_abs_log,
+      long_obj = long_submodels$CD8_abs_log,
       surv_obj = cox_all_dli,
-      fform = ~ trans1 + trans1:DLI.1 + trans2 + trans2:DLI.2 + trans3 + trans3:DLI.3 - 1
+      fform = ~ trans1 + trans2 + trans3 - 1
     )
   ),
   tar_target(
-    JMbayes2_CD4_allDLI_nointer, # name is non case sensitive!
-    jm(
-      Surv_object = cox_all_dli,
-      Mixed_objects = long_submodels$CD4_abs_log,
-      time_var = "intSCT2_5",
-      functional_forms = list(
-        "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3 - 1)
-      ),
-      data_Surv = dli_msdata,
-      n_iter = 15000L,
-      n_burnin = 5000L#,
-      # priors = list(
-      #   # Local ridge priors for each alpha ~ N(0, 1/2) - change 3
-      #   Tau_alphas = lapply(seq_len(3), function(alpha) matrix(data = 1)) # change
-      # )
+    JM_CD3_allDLI_nointer,
+    run_jointModel(
+      long_obj = long_submodels$CD3_abs_log,
+      surv_obj = cox_all_dli,
+      fform = ~ trans1 + trans2 + trans3 - 1
     )
-  ),
+  )
 
   # Part 3b: Run bivariate jm (now alphas of CD8 and CD4 are in same model)
-  tar_target(
-    multivar_allDLI_nointer, # name is non case sensitive!
-    jm(
-      Surv_object = cox_all_dli,
-      Mixed_objects = long_submodels,
-      time_var = "intSCT2_5",
-      functional_forms = list(
-        "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3 - 1),
-        "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans3 - 1)
-      ),
-      data_Surv = dli_msdata, # try with this
-      n_iter = 15000L,
-      n_burnin = 5000L
-    )
-  ),
+  # tar_target(
+  #   multivar_allDLI_nointer, # name is non case sensitive!
+  #   jm(
+  #     Surv_object = cox_all_dli,
+  #     Mixed_objects = long_submodels,
+  #     time_var = "intSCT2_5",
+  #     functional_forms = list(
+  #       "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3 - 1),
+  #       "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans3 - 1)
+  #     ),
+  #     data_Surv = dli_msdata, # try with this
+  #     n_iter = 15000L,
+  #     n_burnin = 5000L
+  #   )
+  # )
 
-  tar_target(
-    multivar_allDLI_slopeGVHD, # name is non case sensitive!
-    jm(
-      Surv_object = cox_all_dli,
-      Mixed_objects = long_submodels,
-      time_var = "intSCT2_5",
-      functional_forms = list(
-        "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3 - 1) +
-          slope(CD4_abs_log):trans2,
-        "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans3 - 1) +
-          slope(CD8_abs_log):trans2
-      ),
-      data_Surv = dli_msdata, # try with this
-      n_iter = 15000L,
-      n_burnin = 5000L
-    )
-  ),
-
-  # Rest of cell-line hereafter, also multivar JMbayes2
-  tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
+  #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
 )
 
 
