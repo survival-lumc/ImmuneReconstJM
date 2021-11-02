@@ -21,7 +21,7 @@ run_jointModel <- function(long_obj,
     interFact = list(
       "value" = fform
     ),
-    iter.EM = 200,
+    #iter.EM = 200,
     ...
   )
 

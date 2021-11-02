@@ -54,15 +54,24 @@ list(
   # Part 1: Data preparation
   tar_target(
     lymphocytes_raw,
-    data.table::data.table(readRDS("data-raw/2021-05-31_v6/lymphocytes.rds"))
+    data.table::data.table(readRDS("data-raw/2021-09-22_v7/lymphocytes.rds"))
   ),
   tar_target(
     variables_raw,
-    data.table::data.table(readRDS("data-raw/2021-05-31_v6/variables.rds"))
+    data.table::data.table(readRDS("data-raw/2021-09-22_v7/variables.rds"))
   ),
   tar_target(dat_merged, prepare_raw_data(lymphocytes_raw, variables_raw)),
   tar_target(reference_values, data.table(cell_reference_values)),
-  tar_target(datasets, get_datasets(dat_merged)),
+
+  # For now just non-myeloablative
+  tar_target(
+    datasets,
+    get_datasets(
+      dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")], # only NMA cohort now
+      admin_cens = 24
+    )
+  ),
+  #tar_target(datasets, get_datasets(dat_merged, admin_cens = 24)),
   tar_target(dli_msdata, prepare_dli_msdata(datasets$wide)),
 
   # Part 2: Prepare submodels
@@ -82,51 +91,51 @@ list(
       form = Surv(Tstart, Tstop, status) ~
         hirisk.1 + DLI.1 + ATG.1 + # Relapse submodel
         DLI.2 + ATG.2 + # GVHD submodel
-        DLI.3 + ATG.3 + # NRF_other submodel
+        DLI.3 + ATG.3 + #NRF_other submodel
         strata(trans)
     )
   ),
 
   # Part 3a: Run univariate joint models with both packages
   tar_target(
-    JM_CD4_allDLI_nointer,
+    JM_CD4_allDLI,
     run_jointModel(
       long_obj = long_submodels$CD4_abs_log,
       surv_obj = cox_all_dli,
-      fform = ~ trans1 + trans2 + trans3 - 1
+      fform = ~ trans1 + trans2 + trans3 - 1,
+      control = list("iter.EM" = 500)
     )
   ),
   tar_target(
-    JM_CD8_allDLI_nointer,
+    JM_CD8_allDLI,
     run_jointModel(
       long_obj = long_submodels$CD8_abs_log,
       surv_obj = cox_all_dli,
-      fform = ~ trans1 + trans2 + trans3 - 1
+      fform = ~ trans1 + trans2 + trans3 - 1,
+      control = list("iter.EM" = 500)
     )
   ),
   tar_target(
-    JM_CD3_allDLI_nointer,
+    JM_CD3_allDLI,
     run_jointModel(
       long_obj = long_submodels$CD3_abs_log,
       surv_obj = cox_all_dli,
-      fform = ~ trans1 + trans2 + trans3 - 1
+      fform = ~ trans1 + trans2 + trans3 - 1,
+      control = list("iter.EM" = 500)
     )
-  )
+  )#,
+  # Do NK and CD19 too?
 
-  # Part 3b: Run bivariate jm (now alphas of CD8 and CD4 are in same model)
+  # Try bayesian ones??
   # tar_target(
-  #   multivar_allDLI_nointer, # name is non case sensitive!
+  #   JM_CD4_allDLI_bayes,
   #   jm(
   #     Surv_object = cox_all_dli,
-  #     Mixed_objects = long_submodels,
+  #     Mixed_objects = list(long_submodels$CD4_abs_log),
   #     time_var = "intSCT2_5",
-  #     functional_forms = list(
-  #       "CD4_abs_log" = ~ value(CD4_abs_log):(trans1 + trans2 + trans3 - 1),
-  #       "CD8_abs_log" = ~ value(CD8_abs_log):(trans1 + trans2 + trans3 - 1)
-  #     ),
-  #     data_Surv = dli_msdata, # try with this
-  #     n_iter = 15000L,
-  #     n_burnin = 5000L
+  #     functional_forms = ~ value(CD4_abs_log):(trans1 + trans2 + trans3) - 1,
+  #     data_Surv = dli_msdata,
+  #     control = list("n_burnin" = 5000, "n_iter" = 15000)
   #   )
   # )
 

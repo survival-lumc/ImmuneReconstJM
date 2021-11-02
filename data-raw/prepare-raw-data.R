@@ -15,7 +15,8 @@ prepare_raw_data <- function(lymphocytes, variables) {
   # Make ID and hirisk into factor
   merged_dat[, ':=' (
     IDAA = as.factor(IDAA),
-    hirisk = factor(hirisk, levels = c(0, 1), labels = c("no", "yes"))
+    hirisk = factor(hirisk, levels = c(0, 1), labels = c("no", "yes")),
+    uDLI_s = factor(uDLI_s, c(0, 1), c("none", "uDLI"))
   )]
 
   # Replace 0 (non-detectable) values with 0.5

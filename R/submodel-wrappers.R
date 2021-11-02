@@ -21,18 +21,27 @@ get_datasets <- function(dat_merged, admin_cens = 24) {
     "CD19_abs_log",
     "NK_abs_log",
     "intSCT2_5",
+    "endpoint5",
+    "endpoint5_s",
+    "endpoint_specify5",
     "endpoint6",
     "endpoint6_s",
     "endpoint_specify6",
     "uDLI",
     "uDLI_s",
     "TCDmethod",
+    "TCD",
+    "TCD2",
     "hirisk",
     "SCT_May2010",
-    "VCMVPAT_pre"
+    "CMV_PD"
   )
 
   dat <- dat_merged[, ..vars]
+
+  # Drop unused levels in subsetted cohort
+  factors <- which(vapply(dat, FUN = is.factor, FUN.VALUE = logical(1)))
+  dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
 
   # Admin censoring at 2y post-HSCT
   dat[endpoint6 >= admin_cens, ':=' (
@@ -51,8 +60,6 @@ get_datasets <- function(dat_merged, admin_cens = 24) {
   dat <- na.omit(dat[, .SD[.N >= 2], by = "IDAA"], cols = cell_vars)
 
   # Prepare a few variables
-  dat[, uDLI_s := factor(uDLI_s, c(0, 1), c("none", "uDLI"))]
-
   dat[, ATG := factor(
     ifelse(TCDmethod == "ALT", "noATG", "yesATG"),
     levels = c("noATG", "yesATG")
@@ -76,8 +83,9 @@ get_datasets <- function(dat_merged, admin_cens = 24) {
   # Make the wide dataset
   dat_wide <- data.table::dcast(
     data = dat,
-    formula = IDAA + SCT_May2010 + hirisk + ATG + VCMVPAT_pre +
-      endpoint6_s + endpoint6 + uDLI + uDLI_s + endpoint_specify6 ~ .,
+    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
+      endpoint6_s + endpoint6 + uDLI + uDLI_s + endpoint_specify6 +
+      TCD + TCD2 + TCDmethod ~ .,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")
@@ -129,7 +137,7 @@ prepare_dli_msdata <- function(dat_wide) {
   )
 
   # Msprep data
-  covs <- c("VCMVPAT_pre", "ATG", "SCT_May2010", "hirisk")
+  covs <- c("CMV_PD", "ATG", "SCT_May2010", "hirisk")
   JM_msdat <- mstate::msprep(
     time = c(NA, "uDLI", "endpoint6", "endpoint6", "endpoint6"),
     status = c(NA, "DLI_ind", "REL_ind", "GVHD_ind", "NRF_ind"),
@@ -204,7 +212,7 @@ run_longitudinal_submodels <- function(dat,
 
   # Set up mixed model structure
   spline_string <- paste0("ns(intSCT2_5, df = ", df_splines, ")")
-  mod_rhs <- paste0(spline_string, " * ATG + VCMVPAT_pre")
+  mod_rhs <- paste0(spline_string, " * ATG + CMV_PD")
   ranef_expr <- if (ranef_structure == "diagonal") {
     list(IDAA = pdDiag(as.formula(paste0("~ ", spline_string))))
   } else as.formula(paste0("~ ", spline_string, "| IDAA"))
