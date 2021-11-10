@@ -11,7 +11,7 @@
 #' using `prepare_raw_data()`.
 #'
 #' @return A list containing long and wide datasets
-get_datasets <- function(dat_merged, admin_cens = 24) {
+get_datasets <- function(dat_merged, admin_cens = 18) {
 
   vars <- c(
     "IDAA",
@@ -34,13 +34,14 @@ get_datasets <- function(dat_merged, admin_cens = 24) {
     "TCD2",
     "hirisk",
     "SCT_May2010",
-    "CMV_PD"
+    "CMV_PD",
+    "DLI_type"
   )
 
   dat <- dat_merged[, ..vars]
 
-  # Drop unused levels in subsetted cohort
-  factors <- which(vapply(dat, FUN = is.factor, FUN.VALUE = logical(1)))
+  # Drop unused levels if subsetted cohort
+  factors <- which(vapply(dat, FUN = is.factor, FUN.VALUE = logical(1L)))
   dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
 
   # Admin censoring at 2y post-HSCT
@@ -57,12 +58,25 @@ get_datasets <- function(dat_merged, admin_cens = 24) {
 
   # Keep patients with at least 2 measurements, and no missing in cell counts
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
-  dat <- na.omit(dat[, .SD[.N >= 2], by = "IDAA"], cols = cell_vars)
+  #dat <- na.omit(dat[, .SD[.N >= 2], by = "IDAA"], cols = cell_vars)
+  dat <- na.omit(dat, cols = cell_vars)
 
   # Prepare a few variables
   dat[, ATG := factor(
     ifelse(TCDmethod == "ALT", "noATG", "yesATG"),
     levels = c("noATG", "yesATG")
+  )]
+
+  dat[, endpoint5_s := factor(
+    endpoint5_s,
+    levels = c(
+      "censored",
+      "7 days after cellular intervention",
+      "relapse",
+      "non-relapse failure: other",
+      "non-relapse failure: GvHD"
+    ),
+    labels = c("cens", "cell_interv", "REL", "NRF_other", "NRF_gvhd")
   )]
 
   dat[, endpoint6_s := factor(
@@ -84,8 +98,9 @@ get_datasets <- function(dat_merged, admin_cens = 24) {
   dat_wide <- data.table::dcast(
     data = dat,
     formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
-      endpoint6_s + endpoint6 + uDLI + uDLI_s + endpoint_specify6 +
-      TCD + TCD2 + TCDmethod ~ .,
+      endpoint6_s + endpoint6 + endpoint_specify6 +
+      endpoint5_s + endpoint5 + endpoint_specify5 +
+      uDLI + uDLI_s + DLI_type + TCD + TCD2 + TCDmethod ~ .,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")
@@ -268,3 +283,4 @@ run_cox_submodel <- function(form, dli_msdata, ...) {
 
   return(mod_comp)
 }
+

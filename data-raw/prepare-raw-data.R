@@ -9,14 +9,15 @@ prepare_raw_data <- function(lymphocytes, variables) {
   merged_dat <- data.table::merge.data.table(x = lymphocytes, y = variables)
 
   # Drop unused levels
-  factors <- which(vapply(merged_dat, FUN = is.factor, FUN.VALUE = logical(1)))
+  factors <- which(vapply(merged_dat, FUN = is.factor, FUN.VALUE = logical(1L)))
   merged_dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
 
   # Make ID and hirisk into factor
   merged_dat[, ':=' (
     IDAA = as.factor(IDAA),
     hirisk = factor(hirisk, levels = c(0, 1), labels = c("no", "yes")),
-    uDLI_s = factor(uDLI_s, c(0, 1), c("none", "uDLI"))
+    uDLI_s = factor(uDLI_s, c(0, 1), c("none", "uDLI")),
+    DLI_type = factor(as.numeric(uDLI < 4), levels = c(0, 1), labels = c("late", "early"))
   )]
 
   # Replace 0 (non-detectable) values with 0.5

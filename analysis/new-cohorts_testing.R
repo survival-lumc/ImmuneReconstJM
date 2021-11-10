@@ -1,8 +1,8 @@
 # Run code here, then incorporate into target pipeline..
 
-lymphocytes_raw <- data.table(readRDS("data-raw/2021-09-22_v7/lymphocytes.rds"))
-variables_raw <- data.table(readRDS("data-raw/2021-09-22_v7/variables.rds"))
-dat_merged <- prepare_raw_data(lymphocytes_raw, variables_raw)
+lymphocytes <- data.table(readRDS("data-raw/2021-09-22_v7/lymphocytes.rds"))
+variables <- data.table(readRDS("data-raw/2021-09-22_v7/variables.rds"))
+dat_merged <- prepare_raw_data(lymphocytes, variables)
 
 
 dat_wide <- data.table::dcast(

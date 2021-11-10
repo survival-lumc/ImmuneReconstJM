@@ -1,6 +1,6 @@
 # For JM in R http://www.drizopoulos.com/courses/Int/JMwithR_EMR_2017.pdf page 122
 # From simsurv https://cran.r-project.org/web/packages/simsurv/vignettes/simsurv_usage.html#example-4-simulating-under-a-joint-model-for-longitudinal-and-survival-data
-# From crowther article Simulating biologically plausiblecomplex survival data
+# From crowther article Simulating biologically plausible complex survival data
 # Flexible parametric joint modelling oflongitudinal and survival data
 # https://aosmith.rbind.io/2018/04/23/simulate-simulate-part-2/
 
@@ -145,7 +145,7 @@ list_trajectories <- with(
 
 df_trajectories <- rbindlist(list_trajectories)
 
-# Keep before event - and keep patients with at two or more measurements
+# Keep before event - and keep patients with at least two or more measurements (optional, don't need to do this)
 df_trajectories[, "time" := params_JM$time[match(id, params_JM$id)]]
 ids_single_meas <- df_trajectories[t < time, .(n_measurements = .N), by = id][n_measurements >= 2][["id"]]
 df_trajectories <- df_trajectories[t < time & id %in% ids_single_meas]
@@ -190,7 +190,7 @@ jointFit <- jointModel(
   lmeObject = lmeFit,
   survObject = coxFit,
   timeVar = "meas_time",
-  method = "spline-PH-aGH" # Assume weibull baseline hazard, more efficient
+  method = "spline-PH-aGH" # Spline-based baseline hazard
 )
 
 summary(jointFit)
