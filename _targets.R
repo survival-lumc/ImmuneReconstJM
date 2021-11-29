@@ -10,7 +10,7 @@ library(future.callr)
 # See https://books.ropensci.org/targets/hpc.html#future for parallelizing
 plan(callr)
 
-# All packages used by the projects
+# All packages used by the projects - this is not good by renv
 project_pkgs <- c(
   "data.table",
   "JM",

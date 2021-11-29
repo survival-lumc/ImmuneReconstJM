@@ -50,9 +50,14 @@ dat_long_predli <- copy(dat_long)
 dat_wide_predli <- copy(dat_wide)
 
 # Limit to first 12 months after SCT, keep only cell measures pre-endpoint
-dat_long_predli[endpoint5 >= 12, ':=' (endpoint5 = 12, endpoint5_s = "cens")]
+dat_long_predli[endpoint5 >= 9, ':=' (endpoint5 = 9, endpoint5_s = "cens")]
 dat_long_predli <- dat_long_predli[intSCT2_5 < endpoint5]
-dat_wide_predli[endpoint5 >= 12, ':=' (endpoint5 = 12, endpoint5_s = "cens")]
+dat_wide_predli[endpoint5 >= 9, ':=' (endpoint5 = 9, endpoint5_s = "cens")]
+
+# Manage modified t-cell products
+dat_wide_predli[endpoint_specify5 == "modified T-cell product", endpoint5_s := "cens"]
+dat_long_predli[endpoint_specify5 == "modified T-cell product", endpoint5_s := "cens"]
+table(dat_wide_predli$endpoint5_s)
 
 # Prep msdata
 event_names <- levels(dat_wide_predli$endpoint5_s)
@@ -91,16 +96,62 @@ coxCRfit <- coxph(
   model = TRUE
 )
 
-lmeFit <- lme(
-  CD3_abs_log ~ ns(intSCT2_5, 3) * ATG + CMV_PD,
-  random = list(IDAA = pdDiag(form = ~ ns(intSCT2_5, 3))),
-  #random = ~ ns(intSCT2_5, 3) | IDAA,
+basehaz(coxCRfit, centered = FALSE) |>
+  ggplot(aes(time, hazard)) +
+  geom_step(size = 1) +
+  facet_wrap(~ strata, labeller = labeller(strata = c(
+    "trans=1" = "1: DLI",
+    "trans=2" = "2: Relapse",
+    "trans=3" = "3: NRF",
+    "trans=4" = "4: GVHD"
+  ))) +
+  labs(x = "Time since alloSCT (months)", y = "Baseline hazard")
+
+lmeFit_df4 <- lme(
+  CD4_abs_log ~ ns(intSCT2_5, 4) * ATG + CMV_PD,
+  random = list(IDAA = pdDiag(form = ~ ns(intSCT2_5, 4))),
+  #random = ~ ns(intSCT2_5, 2) | IDAA,
   control = lmeControl(opt = 'optim'),
   data = dat_long_predli
 )
+lmeFit_df3 <- lme(
+  CD4_abs_log ~ ns(intSCT2_5, 3) * ATG + CMV_PD,
+  random = list(IDAA = pdDiag(form = ~ ns(intSCT2_5, 3))),
+  #random = ~ ns(intSCT2_5, 2) | IDAA,
+  control = lmeControl(opt = 'optim'),
+  data = dat_long_predli,
+)
+anova(update(lmeFit_df3, method = "ML"), update(lmeFit_df, method = "ML"))
+
+# Predict mixed model
+cbind.data.frame(newdat_jm, "pred" = predict(lmeFit, level = 0L, newdata = newdat_jm)) |>
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") +
+  facet_wrap(facets = ~ CMV_PD) +
+  labs(x = "Time since alloHCT (months)", y = "CD4 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  xlim(c(0, 9)) +
+  geom_vline(xintercept = 6, linetype = "dashed")
+
+
+# Plot the raw data
+dat_long_predli |>
+  ggplot(aes(intSCT2_5, CD3_abs_log)) +
+  geom_line(aes(group = IDAA), alpha = 0.8, col = "gray") +
+  geom_smooth(se = FALSE, method = "lm", formula = y ~ ns(x, 4)) +
+  facet_grid(ATG ~ CMV_PD) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  )
+
 
 jm_predli <- jointModel(
-  lmeObject = lmeFit,
+  lmeObject = lmeFit_df4,
   survObject = coxCRfit,
   timeVar = "intSCT2_5",
   method = "spline-PH-aGH",# or piecewise
@@ -111,6 +162,37 @@ jm_predli <- jointModel(
 
 summary(jm_predli)
 
+newdat_jm <- expand.grid(
+  "ATG" = levels(dat_wide_predli$ATG),
+  "CMV_PD" = levels(dat_wide_predli$CMV_PD),
+  "intSCT2_5" = seq(0.1, 9, by = 0.1)
+)
+
+predict(
+  jm_predli,
+  newdata = newdat_jm,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+) |>
+  ggplot(aes(x = intSCT2_5, y = pred, group = ATG, col = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 0.3,
+    col = NA
+  ) +
+  geom_line(size = 1.5, alpha = 0.75) +
+  #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") +
+  facet_wrap(facets = ~ CMV_PD) +
+  labs(x = "Time since alloHCT (months)", y = "CD3 cell counts") +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  xlim(c(0, 9)) #+
+  #geom_vline(xintercept = 6, linetype = "dashed")
 
 
 # Merge NRF other and DLI attempt  ----------------------------------------
@@ -120,9 +202,9 @@ dat_long_predli <- copy(dat_long)
 dat_wide_predli <- copy(dat_wide)
 
 # Limit to first 12 months after SCT, keep only cell measures pre-endpoint
-dat_long_predli[endpoint5 >= 12, ':=' (endpoint5 = 12, endpoint5_s = "cens")]
+dat_long_predli[endpoint5 >= 9, ':=' (endpoint5 = 9, endpoint5_s = "cens")]
 dat_long_predli <- dat_long_predli[intSCT2_5 < endpoint5]
-dat_wide_predli[endpoint5 >= 12, ':=' (endpoint5 = 12, endpoint5_s = "cens")]
+dat_wide_predli[endpoint5 >= 9, ':=' (endpoint5 = 9, endpoint5_s = "cens")]
 
 # Combine endpoints
 dat_long_predli[, cr_new := factor(
@@ -204,7 +286,7 @@ summary(jm_predli)
 newdat_jm <- expand.grid(
   "ATG" = levels(dat_wide_predli$ATG),
   "CMV_PD" = levels(dat_wide_predli$CMV_PD),
-  "intSCT2_5" = seq(0.1, 12, by = 0.1)
+  "intSCT2_5" = seq(0.1, 9, by = 0.1)
 )
 
 predict(
@@ -253,7 +335,7 @@ dat_wide_dli[, "CD3_predli" := predict(
   type = "Marginal",
   idVar = "IDAA",
   returnData = FALSE,
-  interval = "non"
+  interval = "none"
 )]
 
 # First look at raw trajectories
@@ -367,8 +449,8 @@ table(dat_wide_prepped$hirisk, dat_wide_prepped$cr_new)
 # Model with DLI_type.2 complains
 mod_comp <- coxph(
   Surv(time, status) ~
-    DLI_type.1 + CD3_predli.1  + # GVHD  # + ATG.1 + CD3_last.1 +
-    hirisk.2 + CD3_predli.2 + # REL and NRF # + ATG.2 + CD3_last.2 +
+    DLI_type.1 + #CD3_predli.1  + # GVHD  # + ATG.1 + CD3_last.1 +
+    hirisk.2 + #CD3_predli.2 + # REL and NRF # + ATG.2 + CD3_last.2 +
     strata(trans),
   cluster = IDAA,
   model = TRUE,
@@ -427,17 +509,46 @@ predict(
   ) +
   geom_line(size = 1.5, alpha = 0.75) +
   #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") +
-  facet_wrap(facets = ~ CMV_PD) +
-  labs(x = "Time since alloHCT (months)", y = "CD3 cell counts") +
+  #facet_wrap(facets = ~ CMV_PD) +
+  labs(x = "Time since alloSCT (months)", y = "CD3 cell counts") +
   scale_y_continuous(
     breaks = log(c(5, 25, 100, 500, 1500)),
     labels = c(5, 25, 100, 500, 1500)
   ) +
-  xlim(c(0, 20)) +
+  xlim(c(0, 18)) +
   geom_vline(xintercept = 6, linetype = "dashed")
 
 
 
+# With slope --------------------------------------------------------------
+
+
+dform <- list(
+  fixed = ~ 0 + dns(intSCT2_5, 2),
+  random = ~ 0 + dns(intSCT2_5, 2),
+  indFixed = c(2, 3),
+  indRandom = c(2, 3)
+)
+
+jm_fit_slopes <- jointModel(
+  lmeObject = lmeFit,
+  survObject = mod_comp,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5",
+  method = "spline-PH-aGH",
+  derivForm = dform,
+  interFact = list(
+    #"value" = ~ strata(trans) - 1,
+    "slope" = ~ strata(trans) - 1
+  ),
+  parameterization = "slope",
+  control = list("iter.EM" = 200)#, "lng.in.kn" = 4)
+)
+
+summary(jm_fit)
+summary(jm_fit_slopes)
+
+fitted(jm_fit_slopes, process = "Longitudinal", type = "Slope")
 
 # Test with slope param ---------------------------------------------------
 
