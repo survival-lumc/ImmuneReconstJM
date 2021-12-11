@@ -16,8 +16,7 @@ prepare_raw_data <- function(lymphocytes, variables) {
   merged_dat[, ':=' (
     IDAA = as.factor(IDAA),
     hirisk = factor(hirisk, levels = c(0, 1), labels = c("no", "yes")),
-    uDLI_s = factor(uDLI_s, c(0, 1), c("none", "uDLI")),
-    DLI_type = factor(as.numeric(uDLI < 4), levels = c(0, 1), labels = c("late", "early"))
+    uDLI_s = factor(uDLI_s, c(0, 1), c("none", "uDLI"))
   )]
 
   # Replace 0 (non-detectable) values with 0.5
@@ -28,11 +27,6 @@ prepare_raw_data <- function(lymphocytes, variables) {
 
   # Add log versions of cell counts
   merged_dat[, paste0(cell_count_vars, "_log") := lapply(.SD, log), .SDcols = cell_count_vars]
-
-  # Add variable for transplant pre 2010 SCT
-  merged_dat[, SCTyear_2010 := factor(
-    as.numeric(SCTyear < 2010), levels = c(0, 1), labels = c("post_2010", "pre_2010")
-  )]
 
   return(merged_dat)
 }

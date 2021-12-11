@@ -21,9 +21,9 @@ get_datasets <- function(dat_merged, admin_cens = 18) {
     "CD19_abs_log",
     "NK_abs_log",
     "intSCT2_5",
-    "endpoint5",
-    "endpoint5_s",
-    "endpoint_specify5",
+    "endpoint7",
+    "endpoint7_s",
+    "endpoint_specify7",
     "endpoint6",
     "endpoint6_s",
     "endpoint_specify6",
@@ -35,7 +35,7 @@ get_datasets <- function(dat_merged, admin_cens = 18) {
     "hirisk",
     "SCT_May2010",
     "CMV_PD",
-    "DLI_type"
+    "earlylow_DLI"
   )
 
   dat <- dat_merged[, ..vars]
@@ -45,18 +45,18 @@ get_datasets <- function(dat_merged, admin_cens = 18) {
   dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
 
   # Admin censoring at 2y post-HSCT
-  dat[endpoint6 >= admin_cens, ':=' (
-    endpoint6 = admin_cens,
-    endpoint6_s = "censored"
-  )]
+  #dat[endpoint6 >= admin_cens, ':=' (
+  #  endpoint6 = admin_cens,
+  #  endpoint6_s = "censored"
+  #)]
 
   # Keep measurements prior to endpoint
-  dat <- dat[intSCT2_5 < endpoint6]
+  #dat <- dat[intSCT2_5 < endpoint6]
 
   # Check this later: (more than one measurement at single time point)
   #dat <- dat[, .SD[!duplicated(intSCT2_5)], by = IDAA]
 
-  # Keep patients with at least 2 measurements, and no missing in cell counts
+  # Keep patients with at least 2 measurements (no!), and no missing in cell counts
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
   #dat <- na.omit(dat[, .SD[.N >= 2], by = "IDAA"], cols = cell_vars)
   dat <- na.omit(dat, cols = cell_vars)
@@ -67,28 +67,28 @@ get_datasets <- function(dat_merged, admin_cens = 18) {
     levels = c("noATG", "yesATG")
   )]
 
-  dat[, endpoint5_s := factor(
-    endpoint5_s,
+  dat[, endpoint7_s := factor(
+    endpoint7_s,
     levels = c(
       "censored",
-      "7 days after cellular intervention",
+      "non-relapse failure: GvHD",
       "relapse",
       "non-relapse failure: other",
-      "non-relapse failure: GvHD"
+      "7 days after cellular intervention"
     ),
-    labels = c("cens", "cell_interv", "REL", "NRF_other", "NRF_gvhd")
+    labels = c("cens", "gvhd", "relapse", "other_nrf", "hd_dli")
   )]
 
   dat[, endpoint6_s := factor(
     endpoint6_s,
     levels = c(
       "censored",
-      "7 days after cellular intervention",
+      "non-relapse failure: GvHD",
       "relapse",
       "non-relapse failure: other",
-      "non-relapse failure: GvHD"
+      "7 days after cellular intervention"
     ),
-    labels = c("cens", "cell_interv", "REL", "NRF_other", "NRF_gvhd")
+    labels = c("cens", "gvhd", "relapse", "other_nrf", "cell_interv")
   )]
 
   # Drop IDAA levels
@@ -99,8 +99,8 @@ get_datasets <- function(dat_merged, admin_cens = 18) {
     data = dat,
     formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
       endpoint6_s + endpoint6 + endpoint_specify6 +
-      endpoint5_s + endpoint5 + endpoint_specify5 +
-      uDLI + uDLI_s + DLI_type + TCD + TCD2 + TCDmethod ~ .,
+      endpoint7_s + endpoint7 + endpoint_specify7 +
+      uDLI + uDLI_s + earlylow_DLI + TCD + TCD2 + TCDmethod ~ .,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")

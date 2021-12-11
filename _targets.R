@@ -27,6 +27,7 @@ tar_option_set(packages = project_pkgs)
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE))
 #rm(project_pkgs)
 
+# Use cluster code here!!!
 
 # Miscellaneous objects ---------------------------------------------------
 
@@ -54,11 +55,11 @@ list(
   # Part 1: Data preparation
   tar_target(
     lymphocytes_raw,
-    data.table::data.table(readRDS("data-raw/2021-09-22_v7/lymphocytes.rds"))
+    data.table::data.table(readRDS("data-raw/2021-11-17_v8/lymphocytes.rds"))
   ),
   tar_target(
     variables_raw,
-    data.table::data.table(readRDS("data-raw/2021-09-22_v7/variables.rds"))
+    data.table::data.table(readRDS("data-raw/2021-11-17_v8/variables.rds"))
   ),
   tar_target(dat_merged, prepare_raw_data(lymphocytes_raw, variables_raw)),
   tar_target(reference_values, data.table(cell_reference_values)),
