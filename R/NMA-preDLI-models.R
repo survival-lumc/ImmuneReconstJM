@@ -1,10 +1,10 @@
-# Prepare Slurm
+# Prepare Slurm (figure out how to get this in another file)
 login <- future::tweak(future::remote, workers = "direct_clust")
 slurm_run <- future::tweak(
   strategy = future.batchtools::batchtools_slurm,
   template = "~/future_slurm.tmpl",
   resources = list(
-    walltime = 59, # 10 * 60 = 10 minutes
+    walltime = 59, # in minutes
     ntasks = 1,
     ncpus = 1,
     memory = '4G',
@@ -18,7 +18,7 @@ NMA_targets <- list(
     NMA_preDLI_CD3_long,
     run_preDLI_longitudinal(
       cell_line = "CD3_abs_log",
-      form_fixed = "ns(intSCT2_5, 3) * hirisk + ATG + CMV_PD",
+      form_fixed = "ns(intSCT2_5, 3) * hirisk + ATG + CMV_PD", # add three-way interaction later
       form_random = list(IDAA = pdDiag(~ ns(intSCT2_5, 3))),
       dat = NMA_preDLI_datasets$long
     )

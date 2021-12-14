@@ -275,7 +275,7 @@ dat_wide_dli <- cbind(
   cd3_pred_tdli = predict(
     jm_predli,
     newdata = dat_wide_dli[, c("uDLI", "hirisk", "ATG", "CMV_PD")][, intSCT2_5 := uDLI][],
-    type = "Marginal"
+    type = "Marginal" # should be individual!!
   )
 )
 dat_wide_dli$endpoint6_s |>  table()

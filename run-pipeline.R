@@ -2,9 +2,9 @@
 tar_visnetwork()
 
 # Run all models
-tar_make()
+#tar_make()
 
-# In parallel
-#tar_make_future(workers = 3)
+# In parallel - use background process
+tar_make_future(workers = 3, callr_function = callr::r_bg)
 
-tar_meta(fields = warnings)
+#tar_meta(fields = warnings)

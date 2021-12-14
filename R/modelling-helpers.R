@@ -216,3 +216,155 @@ run_jointModel <- function(long_obj,
 
 # jmbayes 2 here..
 
+
+# Post-DLI helpers --------------------------------------------------------
+
+
+tar_load(dat_merged)
+
+get_postDLI_datasets <- function(dat_merged,
+                                 admin_cens_dli, # admin cens post DLI
+                                 preDLI_model) {
+
+  # Variables to keep
+  vars <- c(
+    "IDAA",
+    "CD4_abs_log",
+    "CD8_abs_log",
+    "CD3_abs_log",
+    "intSCT2_5",
+    "endpoint7",
+    "endpoint7_s",
+    "endpoint_specify7",
+    "sec_endpoint",
+    "sec_endpoint_s",
+    "sec_endpoint_specify",
+    "uDLI",
+    "uDLI_s",
+    "TCDmethod",
+    "TCD",
+    "TCD2",
+    "hirisk",
+    "SCT_May2010",
+    "CMV_PD",
+    "earlylow_DLI",
+    "HLAmismatch_GvH",
+    "relation"
+  )
+
+  dat <- dat_merged[, ..vars]
+  dat <- dat[uDLI_s == "uDLI"] # Only those with DLI
+
+  # Define the endpoint - rel and nrf are merged
+  dat[, sec_endpoint_s := factor(
+    sec_endpoint_s,
+    levels = c(
+      "censored",
+      "non-relapse failure: GvHD",
+      "relapse",
+      "non-relapse failure: other"
+    ),
+    labels = c("cens", "gvhd", "rel_nrf", "rel_nrf")
+  )]
+
+  # Measurements at endpoint taken as just prior
+  dat[intSCT2_5 == sec_endpoint, intSCT2_5 := intSCT2_5 - 0.01]
+
+  # Add ATG variable (only relevant NMA)
+  dat[, ATG := factor(
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT", "ALT+ATG"),
+    levels = c("ALT", "ALT+ATG")
+  )]
+
+  # First predict true current vals from prev model at time of DLI
+  dat_wide_temp <- data.table::dcast(
+    data = dat,
+    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD + uDLI ~ .,
+    fun = length
+  )
+
+  # Try predli mer
+
+
+  dat_wide_temp[, intSCT2_5 := uDLI]
+  #dat_wide_temp[, CD3_abs_log := 1] # filler
+
+  reffs_lp <- coef(preDLI_model)[, 1:4]
+  mmat_newdat <- model.matrix(preDLI_model$termsYx, data = dat_wide_temp)[, 1:4]
+
+
+
+  # Levels not yet dropped so can match with as.numeric
+  id_new <- as.numeric(dat_wide_temp$IDAA)
+  reffs_lp[id_new, ]
+  preDLI_model$x$idT
+  #preDLI_model$EB$Zb
+
+  as.numeric(NMA_preDLI_datasets$long$IDAA)
+
+  tar_load(NMA_preDLI_datasets)
+  id_df <- unique(cbind.data.frame("IDAA" = NMA_preDLI_datasets$long$IDAA, "id" = preDLI_model$id))
+  preDLI_model$EB$Zb[match(dat_wide_temp$IDAA, id_df$IDAA)] |>  unique() |>  length()
+  preDLI_model
+  preDLI_model$data.id
+
+  # Just zb as offset? Try it out
+
+  predict(
+    preDLI_model,
+    newdata = dat_wide_temp[, intSCT2_5 := uDLI][],
+    idVar = "IDAA",
+    type = "Marginal" # should be individual!!
+  ) +
+  cofs <- coe
+  mmat <- model.matrix(preDLI_model$termsYx,
+               data = dat_wide_temp[, ':=' (
+                 intSCT2_5 = uDLI,
+                 CD3_abs_log = 1
+               )][])
+
+  # Only measurements after DLI
+
+  #... below is older
+
+  # Apply admin censoring
+  dat[endpoint7 >= admin_cens, ':=' (
+    endpoint7 = admin_cens,
+    endpoint7_s = "cens"
+  )]
+
+  # Measurements at endpoint taken as just prior
+  dat[intSCT2_5 == endpoint7, intSCT2_5 := intSCT2_5 - 0.01]
+  dat <- dat[intSCT2_5 < endpoint7]
+
+  # Remove (couple) of missings from cell variables
+  cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
+  dat <- na.omit(dat, cols = cell_vars)
+
+  # Drop factor levels
+  factors <- which(vapply(dat, FUN = is.factor, FUN.VALUE = logical(1L)))
+  dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
+
+  # Add ATG variable (only relevant NMA)
+  dat[, ATG := factor(
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT", "ALT+ATG"),
+    levels = c("ALT", "ALT+ATG")
+  )]
+
+  # Make the wide dataset
+  dat_wide <- data.table::dcast(
+    data = dat,
+    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
+      endpoint7_s + endpoint7 + endpoint_specify7 +
+      HLAmismatch_GvH + relation +
+      uDLI + uDLI_s + earlylow_DLI + TCD + TCD2 + TCDmethod ~ .,
+    fun = length
+  )
+  data.table::setnames(dat_wide, old = ".", new = "n_measurements")
+
+  # Return them in list
+  res <- list("long" = dat, "wide" = dat_wide)
+
+  return(res)
+
+}
