@@ -1,14 +1,12 @@
 # Global pipeline set-up --------------------------------------------------
 
+# This is nice https://github.com/epiforecasts/evaluate-delta-for-forecasting/blob/4d8449fbedba71690ac6f1320a8438bdc10a4f44/_targets.R
 
 # Workhorse packages
-library(targets)
-library(tarchetypes)
-library(future)
-library(future.callr)
-
-# See https://books.ropensci.org/targets/hpc.html#future for parallelizing
-plan(callr)
+library("targets")
+library("tarchetypes")
+library("future")
+library("future.batchtools")
 
 # All packages used by the projects - this is not good by renv
 project_pkgs <- c(
@@ -19,15 +17,17 @@ project_pkgs <- c(
   "mstate",
   "nlme",
   "kableExtra",
-  "ggrepel"
+  "ggrepel",
+  "future"
 )
 
 tar_option_set(packages = project_pkgs)
 # Uncomment if running scripts interactively:
-# sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE))
-#rm(project_pkgs)
+# sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
-# Use cluster code here!!!
+# Everything except specific target is sequential
+plan(sequential)
+#plan(callr) # if local parallel
 
 # Miscellaneous objects ---------------------------------------------------
 
@@ -45,12 +45,12 @@ cell_reference_values <- cbind.data.frame(
 
 # Source functions
 source("data-raw/prepare-raw-data.R")
-source("R/submodel-wrappers.R")
-source("R/joint-model-wrappers.R")
+source("R/modelling-helpers.R")
 
+# Targets in separate R files?
 
 # Pipeline:
-list(
+targets_list <- list(
 
   # Part 1: Data preparation
   tar_target(
@@ -64,83 +64,29 @@ list(
   tar_target(dat_merged, prepare_raw_data(lymphocytes_raw, variables_raw)),
   tar_target(reference_values, data.table(cell_reference_values)),
 
-  # For now just non-myeloablative
+  # Prepare datasets for analysis (pre-DLI ones)
   tar_target(
-    datasets,
-    get_datasets(
-      # only NMA cohort now + subset with DLI
-      dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-      admin_cens = 18
+    NMA_preDLI_datasets,
+    get_preDLI_datasets(
+      # <CHECK THIS IS RIGHT?> 171?
+      dat_merged[TCD2 %in% c("NMA UD: ALT", "NMA RD: ALT", "UD: ALT + ATG")],
+      admin_cens = 6
     )
-  )#,
-  # tar_target(dli_msdata, prepare_dli_msdata(datasets$wide)),
-  #
-  # # Part 2: Prepare submodels
-  # tar_target(
-  #   long_submodels,
-  #   run_longitudinal_submodels(
-  #     datasets$long,
-  #     which_cells = c("CD4_abs_log", "CD8_abs_log", "CD3_abs_log"),
-  #     df_splines = 4,
-  #     ranef_structure = "diagonal"
-  #   )
-  # ),
-  # tar_target(
-  #   cox_all_dli,
-  #   run_cox_submodel(
-  #     dli_msdata = dli_msdata,
-  #     form = Surv(Tstart, Tstop, status) ~
-  #       hirisk.1 + DLI.1 + ATG.1 + # Relapse submodel
-  #       DLI.2 + ATG.2 + # GVHD submodel
-  #       DLI.3 + ATG.3 + #NRF_other submodel
-  #       strata(trans)
-  #   )
-  # ),
-  #
-  # # Part 3a: Run univariate joint models with both packages
-  # tar_target(
-  #   JM_CD4_allDLI,
-  #   run_jointModel(
-  #     long_obj = long_submodels$CD4_abs_log,
-  #     surv_obj = cox_all_dli,
-  #     fform = ~ trans1 + trans2 + trans3 - 1,
-  #     control = list("iter.EM" = 500)
-  #   )
-  # ),
-  # tar_target(
-  #   JM_CD8_allDLI,
-  #   run_jointModel(
-  #     long_obj = long_submodels$CD8_abs_log,
-  #     surv_obj = cox_all_dli,
-  #     fform = ~ trans1 + trans2 + trans3 - 1,
-  #     control = list("iter.EM" = 500)
-  #   )
-  # ),
-  # tar_target(
-  #   JM_CD3_allDLI,
-  #   run_jointModel(
-  #     long_obj = long_submodels$CD3_abs_log,
-  #     surv_obj = cox_all_dli,
-  #     fform = ~ trans1 + trans2 + trans3 - 1,
-  #     control = list("iter.EM" = 500)
-  #   )
-  # )#,
-  # Do NK and CD19 too?
-
-  # Try bayesian ones??
-  # tar_target(
-  #   JM_CD4_allDLI_bayes,
-  #   jm(
-  #     Surv_object = cox_all_dli,
-  #     Mixed_objects = list(long_submodels$CD4_abs_log),
-  #     time_var = "intSCT2_5",
-  #     functional_forms = ~ value(CD4_abs_log):(trans1 + trans2 + trans3) - 1,
-  #     data_Surv = dli_msdata,
-  #     control = list("n_burnin" = 5000, "n_iter" = 15000)
-  #   )
-  # )
-
+  ),
+  tar_target(
+    MA_RD_preDLI_datasets,
+    get_preDLI_datasets(dat_merged[TCD2 %in% c("MA RD: no in vivo TCD")], admin_cens = 6)
+  ),
+  tar_target(
+    MA_UD_preDLI_datasets,
+    get_preDLI_datasets(dat_merged[TCD2 %in% c("MA UD: ALT")], admin_cens = 6)
+  )
   #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
 )
 
+# Source cohort-specific targets
+source("R/NMA-models.R")
+#...
 
+targets_list <- c(targets_list, NMA_targets)
+targets_list
