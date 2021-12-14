@@ -220,8 +220,6 @@ run_jointModel <- function(long_obj,
 # Post-DLI helpers --------------------------------------------------------
 
 
-tar_load(dat_merged)
-
 get_postDLI_datasets <- function(dat_merged,
                                  admin_cens_dli, # admin cens post DLI
                                  preDLI_model) {
@@ -283,45 +281,7 @@ get_postDLI_datasets <- function(dat_merged,
     fun = length
   )
 
-  # Try predli mer
-
-
-  dat_wide_temp[, intSCT2_5 := uDLI]
-  #dat_wide_temp[, CD3_abs_log := 1] # filler
-
-  reffs_lp <- coef(preDLI_model)[, 1:4]
-  mmat_newdat <- model.matrix(preDLI_model$termsYx, data = dat_wide_temp)[, 1:4]
-
-
-
-  # Levels not yet dropped so can match with as.numeric
-  id_new <- as.numeric(dat_wide_temp$IDAA)
-  reffs_lp[id_new, ]
-  preDLI_model$x$idT
-  #preDLI_model$EB$Zb
-
-  as.numeric(NMA_preDLI_datasets$long$IDAA)
-
-  tar_load(NMA_preDLI_datasets)
-  id_df <- unique(cbind.data.frame("IDAA" = NMA_preDLI_datasets$long$IDAA, "id" = preDLI_model$id))
-  preDLI_model$EB$Zb[match(dat_wide_temp$IDAA, id_df$IDAA)] |>  unique() |>  length()
-  preDLI_model
-  preDLI_model$data.id
-
-  # Just zb as offset? Try it out
-
-  predict(
-    preDLI_model,
-    newdata = dat_wide_temp[, intSCT2_5 := uDLI][],
-    idVar = "IDAA",
-    type = "Marginal" # should be individual!!
-  ) +
-  cofs <- coe
-  mmat <- model.matrix(preDLI_model$termsYx,
-               data = dat_wide_temp[, ':=' (
-                 intSCT2_5 = uDLI,
-                 CD3_abs_log = 1
-               )][])
+  #...
 
   # Only measurements after DLI
 

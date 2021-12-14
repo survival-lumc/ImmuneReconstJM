@@ -7,6 +7,7 @@ library("targets")
 library("tarchetypes")
 library("future")
 library("future.batchtools")
+library("future.callr")
 
 # All packages used by the projects - this is not good by renv
 project_pkgs <- c(
@@ -21,7 +22,7 @@ project_pkgs <- c(
   "future"
 )
 
-tar_option_set(packages = project_pkgs)
+tar_option_set(packages = project_pkgs, error = "continue")
 # Uncomment if running scripts interactively:
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
