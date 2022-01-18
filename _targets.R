@@ -1,6 +1,8 @@
 # Global pipeline set-up --------------------------------------------------
 
-# This is nice https://github.com/epiforecasts/evaluate-delta-for-forecasting/blob/4d8449fbedba71690ac6f1320a8438bdc10a4f44/_targets.R
+# See following for setting up final pipline:
+# https://github.com/epiforecasts/evaluate-delta-for-forecasting/blob/4d8449fbedba71690ac6f1320a8438bdc10a4f44/_targets.R
+# - Also use capsule for renv
 
 # Workhorse packages
 library("targets")
@@ -9,7 +11,7 @@ library("future")
 library("future.batchtools")
 library("future.callr")
 
-# All packages used by the projects - this is not good by renv
+# All packages used by the projects - this is not good for renv
 project_pkgs <- c(
   "data.table",
   "JM",
@@ -27,8 +29,8 @@ tar_option_set(packages = project_pkgs, error = "continue")
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
 # Everything except specific target is sequential
-plan(sequential)
-#plan(callr) # if local parallel
+plan(sequential) # plan(callr) instead if local parallel
+
 
 # Miscellaneous objects ---------------------------------------------------
 
@@ -44,13 +46,11 @@ cell_reference_values <- cbind.data.frame(
 # Analysis pipeline -------------------------------------------------------
 
 
-# Source functions
+# Source support functions
 source("data-raw/prepare-raw-data.R")
 source("R/modelling-helpers.R")
 
-# Targets in separate R files?
-
-# Pipeline:
+# Pipeline (parts are in separate files):
 targets_list <- list(
 
   # Part 1: Data preparation
@@ -74,14 +74,6 @@ targets_list <- list(
                              "NMA RD: ALT", "UD: ALT + ATG")],
       admin_cens = 6
     )
-  ),
-  tar_target(
-    MA_RD_preDLI_datasets,
-    get_preDLI_datasets(dat_merged[TCD2 %in% c("MA RD: no in vivo TCD")], admin_cens = 6)
-  ),
-  tar_target(
-    MA_UD_preDLI_datasets,
-    get_preDLI_datasets(dat_merged[TCD2 %in% c("MA UD: ALT")], admin_cens = 6)
   )
   #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
 )
