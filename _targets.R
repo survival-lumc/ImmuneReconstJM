@@ -70,7 +70,8 @@ targets_list <- list(
     NMA_preDLI_datasets,
     get_preDLI_datasets(
       # <CHECK THIS IS RIGHT?> 171?
-      dat_merged[TCD2 %in% c("NMA UD: ALT", "NMA RD: ALT", "UD: ALT + ATG")],
+      dat_merged[TCD2 %in% c(#"NMA UD: ALT", - these are weird protocol
+                             "NMA RD: ALT", "UD: ALT + ATG")],
       admin_cens = 6
     )
   ),

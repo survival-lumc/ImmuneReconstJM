@@ -25,7 +25,7 @@ newdat_jm <- expand.grid(
 predict(
   NMA_preDLI_CD3_jointModel_both,
   newdata = newdat_jm,
-  type = "Marginal",
+  type = "Subject",
   idVar = "IDAA",
   returnData = TRUE,
   interval = "confidence"
@@ -48,10 +48,10 @@ predict(
   #geom_text(aes(label = label), hjust = 0, na.rm = TRUE, fontface = "bold") +
   facet_wrap(facets = ~ CMV_PD) +
   labs(x = "Time since alloHCT (months)", y = "CD3 cell counts") +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
+  #scale_y_continuous(
+  #  breaks = log(c(5, 25, 100, 500, 1500)),
+  #  labels = c(5, 25, 100, 500, 1500)
+  #) +
   xlim(c(0, 6)) +
   theme_minimal(base_size = 14)
 
@@ -103,3 +103,16 @@ dt_edit %>%
   pack_rows("GVHD", 1, 3) %>%
   pack_rows("Relapse", 4, 7) %>%
   pack_rows("NRF: Other", 8, 10)
+
+
+# Plot current slopes?
+nrow(NMA_preDLI_CD3_jointModel_both$x$X)
+plot(NMA_preDLI_CD3_jointModel_both)
+
+
+#plot() basis derivative
+plot(dat_long$intSCT2_5,
+     NMA_preDLI_CD3_jointModel_both$x$Xtime[, 2])
+
+
+# Model just with cause-specific Relapse (or GVHD on its own)
