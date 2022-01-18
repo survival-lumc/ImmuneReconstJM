@@ -82,5 +82,5 @@ targets_list <- list(
 source("R/NMA-preDLI-models.R")
 #...
 
-targets_list <- c(targets_list, NMA_targets)
+targets_list <- c(targets_list, preDLI_targets)
 targets_list
