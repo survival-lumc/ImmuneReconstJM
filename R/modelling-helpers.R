@@ -74,7 +74,7 @@ get_preDLI_datasets <- function(dat_merged,
 
   # Add ATG variable (only relevant NMA)
   dat[, ATG := factor(
-    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT", "ALT+ATG"),
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT+ATG", "ALT"),
     levels = c("ALT", "ALT+ATG")
   )]
 
