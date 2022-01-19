@@ -99,5 +99,31 @@ preDLI_targets <- list(
     ),
     deployment = "worker",
     resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
-  ) # add CD8 here below..
+  ),
+  tar_target(
+    preDLI_CD8_jointModel_both,
+    command = value(
+      future({
+        run_jointModel(
+          long_obj = preDLI_CD8_long,
+          surv_obj = preDLI_cox,
+          timeVar = "intSCT2_5",
+          parameterization = "both",
+          iter.EM = 1000,
+          interFact = list(
+            "value" = ~ strata(trans) - 1,
+            "slope" = ~ strata(trans) - 1
+          ),
+          derivForm = list(
+            fixed = ~ 0 + dns(intSCT2_5, 3),
+            random = ~ 0 + dns(intSCT2_5, 3),
+            indFixed = c(2:4),
+            indRandom = c(2:4)
+          )
+        )
+      })
+    ),
+    deployment = "worker",
+    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+  )
 )

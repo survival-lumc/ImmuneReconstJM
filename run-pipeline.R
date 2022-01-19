@@ -5,7 +5,7 @@ tar_visnetwork()
 #tar_make()
 
 # In parallel - use background process
-tar_make_future(workers = 3)
-tar_make_future(workers = 3, callr_function = callr::r_bg)
+tar_make_future(workers = 4)
+#tar_make_future(workers = 3, callr_function = callr::r_bg)
 
 #tar_meta(fields = warnings)

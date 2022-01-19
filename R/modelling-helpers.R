@@ -221,7 +221,7 @@ run_jointModel <- function(long_obj,
 
 
 get_postDLI_datasets <- function(dat_merged,
-                                 admin_cens_dli, # admin cens post DLI
+                                 admin_cens_dli = 12, # admin cens months post DLI
                                  preDLI_model) {
 
   # Variables to keep
@@ -251,7 +251,6 @@ get_postDLI_datasets <- function(dat_merged,
   )
 
   dat <- dat_merged[, ..vars]
-  dat <- dat[uDLI_s == "uDLI"] # Only those with DLI
 
   # Define the endpoint - rel and nrf are merged
   dat[, sec_endpoint_s := factor(
@@ -277,9 +276,53 @@ get_postDLI_datasets <- function(dat_merged,
   # First predict true current vals from prev model at time of DLI
   dat_wide_temp <- data.table::dcast(
     data = dat,
-    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD + uDLI ~ .,
+    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
+      earlylow_DLI + uDLI ~ .,
     fun = length
   )
+
+  dat_wide_temp[, "intSCT2_5" := uDLI]
+  dat_wide_temp[, "CD4_abs_log" := 0] # filler
+
+  predict(
+    preDLI_CD4_jointModel_both,
+    newdata = dat_wide_temp,
+    type = "Marginal" # subject not implemented
+  )
+
+  fitted(preDLI_CD4_jointModel_both,
+         process = "Longitudinal", type = "Subject") |>  length()
+
+  fitted(preDLI_CD4_jointModel_both,
+         process = "Longitudinal", type = "Slope")
+
+  temp_long <- copy(preDLI_CD4_jointModel_both$data)
+  temp_long[, ':=' (
+    id = preDLI_CD4_jointModel_both$id,
+    subj_spec_pred = fitted(preDLI_CD4_jointModel_both,
+                            process = "Longitudinal", type = "Subject"),
+    subj_spec_slope = ff
+  )]
+
+  # These are the coefficients per patient
+  reffs <- coef(preDLI_CD4_jointModel_both)
+  colnames(reffs)
+  mmdat <- model.matrix(
+    preDLI_CD4_jointModel_both$termsYx,
+    data = data.frame(dat_wide_temp)
+  )
+
+
+  dat_wide_temp[, "CD4_true_tDLI" := predict(
+    preDLI_CD4_jointModel_both,
+    newdata = .SD
+  )]
+
+
+  # Selection happens AFTER
+  dat <- dat[uDLI_s == "uDLI"] # Only those with DLI
+
+
 
   #...
 

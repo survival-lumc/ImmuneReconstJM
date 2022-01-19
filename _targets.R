@@ -29,7 +29,7 @@ tar_option_set(packages = project_pkgs, error = "continue")
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
 # Everything except specific target is sequential
-plan(sequential) # plan(callr) instead if local parallel
+plan(sequential) #plan(callr) # plan sequential
 
 
 # Miscellaneous objects ---------------------------------------------------
