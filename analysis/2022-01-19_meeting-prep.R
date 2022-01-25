@@ -1,11 +1,14 @@
 tar_load(
   c(
+    dat_merged,
     NMA_preDLI_datasets,
     preDLI_CD3__jointModel_both,
     #preDLI_CD4_jointModel_both,
     #preDLI_CD8_jointModel_both
   )
 )
+
+# Check
 
 theme_set(theme_bw(base_size = 14))
 dat_long <- NMA_preDLI_datasets$long
@@ -34,6 +37,7 @@ table_mod_summary(preDLI_CD3__jointModel_both)
 
 # (For Hein/Liesbeth)
 # - subject-specific predictions (within scope of data)
+# - get last measure preDLI
 dat_long[, preds_subj := fitted(
   preDLI_CD3__jointModel_both,
   process = "Longitudinal",
@@ -154,7 +158,7 @@ plot_preDLI_average_trajectories <- function(model,
       x = intSCT2_5,
       y = pred,
       group = interaction(ATG, hirisk),
-      col = interaction(ATG, hirisk)
+      col = ATG
     )
   ) +
     geom_ribbon(
@@ -163,7 +167,11 @@ plot_preDLI_average_trajectories <- function(model,
       alpha = 0.3,
       col = NA
     ) +
-    geom_line(size = 1.5, alpha = 0.75) +
+    geom_line(
+      aes(linetype = hirisk),
+      size = 1.5,
+      alpha = 0.75
+    ) +
     # add repel labels
     facet_wrap(facets = ~ CMV_PD) +
     labs(x = "Time since alloHCT (months)", y = ylab) +

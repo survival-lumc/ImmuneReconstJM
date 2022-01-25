@@ -222,7 +222,8 @@ run_jointModel <- function(long_obj,
 
 get_postDLI_datasets <- function(dat_merged,
                                  admin_cens_dli = 12, # admin cens months post DLI
-                                 preDLI_model) {
+                                 preDLI_model,
+                                 preDLI_datasets) {
 
   # Variables to keep
   vars <- c(
@@ -274,71 +275,31 @@ get_postDLI_datasets <- function(dat_merged,
   )]
 
   # First predict true current vals from prev model at time of DLI
-  dat_wide_temp <- data.table::dcast(
-    data = dat,
-    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
-      earlylow_DLI + uDLI ~ .,
-    fun = length
-  )
-
-  dat_wide_temp[, "intSCT2_5" := uDLI]
-  dat_wide_temp[, "CD4_abs_log" := 0] # filler
-
-  predict(
-    preDLI_CD4_jointModel_both,
-    newdata = dat_wide_temp,
-    type = "Marginal" # subject not implemented
-  )
-
-  fitted(preDLI_CD4_jointModel_both,
-         process = "Longitudinal", type = "Subject") |>  length()
-
-  fitted(preDLI_CD4_jointModel_both,
-         process = "Longitudinal", type = "Slope")
-
-  temp_long <- copy(preDLI_CD4_jointModel_both$data)
-  temp_long[, ':=' (
-    id = preDLI_CD4_jointModel_both$id,
-    subj_spec_pred = fitted(preDLI_CD4_jointModel_both,
-                            process = "Longitudinal", type = "Subject"),
-    subj_spec_slope = ff
+  # (for now used fitted values at timepoint just prior)
+  preDLI_dat_long <- preDLI_datasets$long
+  preDLI_dat_long[, preds_subj := fitted(
+    preDLI_model,
+    process = "Longitudinal",
+    type = "Subject"
   )]
+  setorder(preDLI_dat_long, "IDAA", "intSCT2_5")
+  df_at_dli <- preDLI_dat_long[
+    uDLI_s == "uDLI" & intSCT2_5 <= uDLI, .SD[.N], by = "IDAA"
+    ][, c("IDAA", "preds_subj")]
 
-  # These are the coefficients per patient
-  reffs <- coef(preDLI_CD4_jointModel_both)
-  colnames(reffs)
-  mmdat <- model.matrix(
-    preDLI_CD4_jointModel_both$termsYx,
-    data = data.frame(dat_wide_temp)
-  )
-
-
-  dat_wide_temp[, "CD4_true_tDLI" := predict(
-    preDLI_CD4_jointModel_both,
-    newdata = .SD
-  )]
-
-
-  # Selection happens AFTER
+  # Selection happens
   dat <- dat[uDLI_s == "uDLI"] # Only those with DLI
 
-
-
-  #...
-
-  # Only measurements after DLI
-
-  #... below is older
-
-  # Apply admin censoring
-  dat[endpoint7 >= admin_cens, ':=' (
-    endpoint7 = admin_cens,
-    endpoint7_s = "cens"
+  # Admin censoring
+  dat[sec_endpoint >= uDLI + admin_cens_dli, ':=' (
+    sec_endpoint = uDLI + admin_cens_dli,
+    sec_endpoint_s = "cens"
   )]
+  dat <- dat[intSCT2_5 < sec_endpoint]
 
-  # Measurements at endpoint taken as just prior
-  dat[intSCT2_5 == endpoint7, intSCT2_5 := intSCT2_5 - 0.01]
-  dat <- dat[intSCT2_5 < endpoint7]
+  # Remember to clock reset measurements!!
+  dat <- dat[uDLI < intSCT2_5]
+  dat[, intSCT2_5_reset := intSCT2_5 - uDLI]
 
   # Remove (couple) of missings from cell variables
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
@@ -348,26 +309,148 @@ get_postDLI_datasets <- function(dat_merged,
   factors <- which(vapply(dat, FUN = is.factor, FUN.VALUE = logical(1L)))
   dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
 
-  # Add ATG variable (only relevant NMA)
-  dat[, ATG := factor(
-    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT", "ALT+ATG"),
-    levels = c("ALT", "ALT+ATG")
-  )]
-
   # Make the wide dataset
   dat_wide <- data.table::dcast(
     data = dat,
     formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
-      endpoint7_s + endpoint7 + endpoint_specify7 +
+      sec_endpoint_s + sec_endpoint + sec_endpoint_specify +
       HLAmismatch_GvH + relation +
       uDLI + uDLI_s + earlylow_DLI + TCD + TCD2 + TCDmethod ~ .,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")
 
+  # Add dli col for measure
+  dat_wide <- merge(dat_wide, df_at_dli, by = "IDAA")
+
   # Return them in list
   res <- list("long" = dat, "wide" = dat_wide)
 
   return(res)
-
 }
+
+
+# Testing here.. remove after
+tar_load(
+  c(
+    dat_merged,
+    NMA_preDLI_datasets,
+    preDLI_CD3__jointModel_both
+  )
+)
+
+NMA_dats_postDLI <- get_postDLI_datasets(
+  dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
+  admin_cens_dli = 12,
+  preDLI_CD3__jointModel_both,
+  NMA_preDLI_datasets
+)
+
+dat_wide <- NMA_dats_postDLI$wide
+
+run_postDLI_cox <- function(form, dat_wide, ...) {
+
+  # Prepare data
+  tmat <- trans.comprisk(K = 2, names = c("DLI", "GVHD", "REL_NRF"))
+  covs <- c("CMV_PD", "hirisk", "ATG", "earlylow_DLI",
+            "HLAmismatch_GvH", "relation", "SCT_May2010", "preds_subj")
+
+  dat_wide_prepped <- copy(dat_wide)
+  msdat <- msprep(
+    time = c(NA, "sec_endpoint", "sec_endpoint"),
+    status = with(
+      dat_wide, cbind(
+        NA,
+        1 * (sec_endpoint_s == "gvhd"),
+        1 * (sec_endpoint_s == "rel_nrf")
+      )
+    ),
+    start = list(state = rep(1, nrow(dat_wide_prepped)), time = dat_wide_prepped$uDLI),
+    data = data.frame(dat_wide_prepped),
+    trans = tmat,
+    keep = covs,
+    id = "IDAA"
+  )
+
+  msdat_expand <- expand.covs(msdat, covs, append = TRUE, longnames = FALSE)
+
+  extra_args <- list(...)
+  main_args <- list(
+    "formula" = form,
+    "cluster" = msdat_expand$IDAA,
+    "model" = TRUE,
+    "x" = TRUE,
+    "data" = msdat_expand
+  )
+
+  mod_comp <- do.call(what = survival::coxph, args = c(main_args, extra_args))
+
+  return(mod_comp)
+}
+
+mod_comp <- run_postDLI_cox(
+  form = Surv(time, status) ~
+    earlylow_DLI.1 + preds_subj.1  + # GVHD
+    hirisk.2 + preds_subj.2 + # REL and NRF
+    strata(trans),
+  dat_wide = dat_wide
+)
+
+lmeFit <- run_preDLI_longitudinal(
+  cell_line = "CD3_abs_log",
+  form_fixed = "ns(intSCT2_5_reset, 2) * earlylow_DLI + ATG", # add three-way interaction later
+  form_random = list(IDAA = pdDiag(~ ns(intSCT2_5_reset, 2))),
+  dat = NMA_dats_postDLI$long
+)
+
+
+# Make raw plots
+NMA_dats_postDLI$long |>
+  ggplot(aes(intSCT2_5_reset, CD3_abs_log, col = IDAA, group = IDAA)) +
+  geom_line() +
+  facet_grid(earlylow_DLI ~ sec_endpoint_s) +
+  theme(legend.position = "none")
+
+jm_fit_both <- jointModel(
+  lmeObject = lmeFit,
+  survObject = mod_comp,
+  CompRisk = TRUE,
+  timeVar = "intSCT2_5_reset",
+  method = "spline-PH-aGH",
+  derivForm = list(
+    fixed = ~ 0 + dns(intSCT2_5_reset, 2) + dns(intSCT2_5_reset, 2):as.numeric(earlylow_DLI == "yes"),
+    random = ~ 0 + dns(intSCT2_5_reset, 2),
+    indFixed = c(2:3, 6:7),
+    indRandom = c(2:3)
+  ),
+  interFact = list(
+    "value" = ~ strata(trans) - 1,
+    "slope" = ~ strata(trans) - 1
+  ),
+  parameterization = "both",
+  control = list("iter.EM" = 1000) #increasuuhhh
+)
+
+jm_fit_both |>  summary()
+# Plot fitteeedddd
+# histogram of slopes?
+# just curr value
+
+dat_long <- NMA_dats_postDLI$long
+dat_long[, preds_subj := fitted(
+  jm_fit_both,
+  process = "Longitudinal",
+  type = "Subject"
+)]
+
+
+set.seed(20220119)
+IDAA_subs <- sample(levels(dat_long$IDAA), replace = FALSE, size = 32)#size = 56)
+
+ggplot(
+  dat_long, aes(intSCT2_5_reset, CD3_abs_log)
+) +
+  geom_point() +
+  geom_line(aes(y = preds_subj, group = IDAA)) +
+  facet_wrap(~ IDAA) +
+  theme(legend.position = "none")
