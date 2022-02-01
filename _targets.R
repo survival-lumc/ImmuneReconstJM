@@ -49,6 +49,7 @@ cell_reference_values <- cbind.data.frame(
 # Source support functions
 source("data-raw/prepare-raw-data.R")
 source("R/modelling-helpers.R")
+source("R/plotting-helpers.R")
 
 # Pipeline (parts are in separate files):
 targets_list <- list(
