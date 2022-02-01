@@ -1,5 +1,6 @@
 # Editing code here https://github.com/drizopoulos/JM/blob/9d1fecf6c1fd4f6089d530929b5219b661134460/R/fitted.jointModel.R
-object <- preDLI_CD3__jointModel_both
+#object <- preDLI_CD3__jointModel_both
+object <- preDLI_CD3_jointModel_corr
 
 # Here we collect terms regarding derivative wrt time
 derivForm <- object$derivForm
@@ -17,7 +18,8 @@ betas <- object$coefficients$betas
 b <- ranef(object)
 
 # Here we need to edit: repeat each line by 3 (# of comp risks)
-b <- b[rep(seq_len(nrow(b)), each = 3), ]
+#b <- b[rep(seq_len(nrow(b)), each = 3), ]
+#Bullshit!!
 
 # Now can continue with rest of code
 id <- object$id

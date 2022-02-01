@@ -330,23 +330,7 @@ get_postDLI_datasets <- function(dat_merged,
 }
 
 
-# Testing here.. remove after
-tar_load(
-  c(
-    dat_merged,
-    NMA_preDLI_datasets,
-    preDLI_CD3__jointModel_both
-  )
-)
 
-NMA_dats_postDLI <- get_postDLI_datasets(
-  dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-  admin_cens_dli = 12,
-  preDLI_CD3__jointModel_both,
-  NMA_preDLI_datasets
-)
-
-dat_wide <- NMA_dats_postDLI$wide
 
 run_postDLI_cox <- function(form, dat_wide, ...) {
 
@@ -388,69 +372,3 @@ run_postDLI_cox <- function(form, dat_wide, ...) {
   return(mod_comp)
 }
 
-mod_comp <- run_postDLI_cox(
-  form = Surv(time, status) ~
-    earlylow_DLI.1 + preds_subj.1  + # GVHD
-    hirisk.2 + preds_subj.2 + # REL and NRF
-    strata(trans),
-  dat_wide = dat_wide
-)
-
-lmeFit <- run_preDLI_longitudinal(
-  cell_line = "CD3_abs_log",
-  form_fixed = "ns(intSCT2_5_reset, 2) * earlylow_DLI + ATG", # add three-way interaction later
-  form_random = list(IDAA = pdDiag(~ ns(intSCT2_5_reset, 2))),
-  dat = NMA_dats_postDLI$long
-)
-
-
-# Make raw plots
-NMA_dats_postDLI$long |>
-  ggplot(aes(intSCT2_5_reset, CD3_abs_log, col = IDAA, group = IDAA)) +
-  geom_line() +
-  facet_grid(earlylow_DLI ~ sec_endpoint_s) +
-  theme(legend.position = "none")
-
-jm_fit_both <- jointModel(
-  lmeObject = lmeFit,
-  survObject = mod_comp,
-  CompRisk = TRUE,
-  timeVar = "intSCT2_5_reset",
-  method = "spline-PH-aGH",
-  derivForm = list(
-    fixed = ~ 0 + dns(intSCT2_5_reset, 2) + dns(intSCT2_5_reset, 2):as.numeric(earlylow_DLI == "yes"),
-    random = ~ 0 + dns(intSCT2_5_reset, 2),
-    indFixed = c(2:3, 6:7),
-    indRandom = c(2:3)
-  ),
-  interFact = list(
-    "value" = ~ strata(trans) - 1,
-    "slope" = ~ strata(trans) - 1
-  ),
-  parameterization = "both",
-  control = list("iter.EM" = 1000) #increasuuhhh
-)
-
-jm_fit_both |>  summary()
-# Plot fitteeedddd
-# histogram of slopes?
-# just curr value
-
-dat_long <- NMA_dats_postDLI$long
-dat_long[, preds_subj := fitted(
-  jm_fit_both,
-  process = "Longitudinal",
-  type = "Subject"
-)]
-
-
-set.seed(20220119)
-IDAA_subs <- sample(levels(dat_long$IDAA), replace = FALSE, size = 32)#size = 56)
-
-ggplot(
-  dat_long, aes(intSCT2_5_reset, CD3_abs_log)
-) +
-  geom_point() +
-  geom_line(aes(y = preds_subj, group = IDAA)) +
-  facet_wrap(~ IDAA) +
-  theme(legend.position = "none")

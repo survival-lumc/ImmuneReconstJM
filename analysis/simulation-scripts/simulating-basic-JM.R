@@ -85,7 +85,7 @@ params_JM <- data.table(
   "intercept" = 20 + rnorm(n, mean = 0, sd = 1), # In one go here for intercept + slope
   "slope" = 1.5 + rnorm(n, mean = 0, sd = 0.5),
   "sigma" = 1,
-  "alpha" = 0.25, # association
+  "alpha" = 0.15, # association
   "beta_X" = 0.5, # Effect of X on longitudinal submodel
   "gamma_X" = 0.25 # Effect of X on survival submodel
 )
@@ -180,6 +180,7 @@ setorder(long_dat, id)
 # Check
 View(wide_dat)
 View(long_dat)
+IDAA = pdDiag(~ ns(intSCT2_5_reset, 3))
 
 # Run joint model
 lmeFit <- lme(y ~ X + meas_time, random = ~ meas_time | id, data = long_dat)
@@ -199,12 +200,249 @@ summary(jointFit)
 # - no event times at zero make sure
 # - no single longitudinal measurements per person
 
+# Do some slope tests -----------------------------------------------------
+
+wide_dat$X <- factor(wide_dat$X, levels = 0:1, labels = c("no", "yes"))
+long_dat$X <- factor(long_dat$X, levels = 0:1, labels = c("no", "yes"))
+lmeFit <- lme(
+  y ~ ns(meas_time, 2) * X,
+  random = list(id = pdDiag(~ ns(meas_time, 2))),
+  data = long_dat
+)
+
+jointFit <- jointModel(
+  lmeObject = lmeFit,
+  survObject = coxFit,
+  parameterization = "both",
+  derivForm =  list(
+    fixed = ~ 0 + dns(meas_time, 2) +
+      dns(meas_time, 2):as.numeric(X == "yes"),
+    indFixed = c(2:3, 5:6),
+    random = ~ 0 + dns(meas_time, 2),
+    indRandom = c(2:3)
+  ),
+  timeVar = "meas_time",
+  method = "spline-PH-aGH" # Spline-based baseline hazard
+)
+
+summary(jointFit)
+
+# Somehow not working? # Make function to get slope
+fitted(
+  jointFit,
+  process = "Longitudinal",
+  type = "Slope"
+)
+object <- jointFit
+long_dat[, "currval" := fitted(
+  jointFit,
+  process = "Longitudinal",
+  type = "Subject"
+)]
+long_dat[, "slope" := ff]
+
+get_int_tangent <- function(x, y, slope) {
+  m <- slope * x
+  int <- -x * slope + y
+  return(int)
+}
+
+long_dat[, int_tang := get_int_tangent(
+  x = meas_time, y = currval, slope = slope
+)]
+
+long_dat[, ':=' (
+  start_x = meas_time - 0.2,
+  start_y = int_tang + slope * (meas_time - 0.25),
+  end_x = meas_time + 0.2,
+  end_y = int_tang + slope * (meas_time + 0.25)
+)]
+
+long_dat[id %in% sample(id, replace = FALSE, size = 32)] |>
+  ggplot(aes(meas_time, y, group = id)) +
+  geom_point() +
+  geom_line(aes(y = currval)) +
+  geom_segment(
+    aes(x = start_x, y = start_y, xend = end_x, yend = end_y),
+    size = 1,
+    arrow = arrow(length = unit(0.03, "npc"))
+  ) +
+  facet_wrap(~ id)
+
+# Try now with splines
+lmeFit <- lme(y ~ X + meas_time, random = ~ list(id = pdDiag(~ meas_time)), data = long_dat)
+coxFit <- coxph(Surv(time, delta) ~ X, data = wide_dat, x = TRUE)
+
+
+
 
 # Real data with JM -------------------------------------------------------
 
 
-aids <- JM::aids
-aid.id <- JM::aids.id
+#aids <- JM::aids
+#aid.id <- JM::aids.id
+pbc2 <- pbc2
+pbc2.idCR <- crLong(pbc2.id, statusVar = "status",
+                    censLevel = "alive", nameStrata = "CR")
+
+
+
+lmeFit.pbc <- lme(log(serBilir) ~ drug * (year + I(year^2)),
+                  random = ~ year + I(year^2) | id, data = pbc2)
+
+coxFit4.pbc <- coxph(Surv(years, status2) ~ (drug + age) * CR + strata(CR),
+        data = pbc2.idCR, x = TRUE)
+
+jointFit11.pbc <- jointModel(
+  lmeFit.pbc, coxFit4.pbc,
+  timeVar = "year", method = "spline-PH-aGH", CompRisk = TRUE,
+  interFact = list(value = ~ CR, data = pbc2.idCR)
+)
+
+summary(jointFit11.pbc)
+
+dform <- list(fixed = ~ I(2*year) * drug, indFixed = 3:6,
+              random = ~ I(2*year), indRandom = 2:3)
+
+jointFit12.pbc <- jointModel(
+  lmeFit.pbc, coxFit4.pbc,
+  timeVar = "year", method = "spline-PH-aGH", CompRisk = TRUE,
+  parameterization = "both",
+  derivForm = dform,
+  interFact = list(value = ~ CR, slope = ~ CR, data = pbc2.idCR)
+)
+
+summary(jointFit12.pbc)
+
+# Try the tangentsss
+object <- jointFit12.pbc
+pb2 <- setDT(pbc2)
+pbc2[, "currval" := fitted(
+  jointFit12.pbc,
+  process = "Longitudinal",
+  type = "Subject"
+)]
+pbc2[, "slope" := ff]
+
+get_int_tangent <- function(x, y, slope) {
+  m <- slope * x
+  int <- -x * slope + y
+  return(int)
+}
+
+pbc2[, int_tang := get_int_tangent(
+  x = year, y = currval, slope = slope
+)]
+
+delta_tan <- 0.5
+pbc2[, ':=' (
+  start_x = year - delta_tan,
+  start_y = int_tang + slope * (year - delta_tan),
+  end_x = year + delta_tan,
+  end_y = int_tang + slope * (year + delta_tan)
+)]
+
+pbc2[id %in% sample(id, replace = FALSE, size = 32)] |>
+  ggplot(aes(year, log(serBilir), group = id)) +
+  geom_point(size = 0.75) +
+  geom_line(aes(y = currval), size = 0.5) +
+  geom_segment(
+    aes(x = start_x, y = start_y, xend = end_x, yend = end_y),
+    size = 1,
+    arrow = arrow(length = unit(0.03, "npc"))
+  ) +
+  facet_wrap(~ id)
+
+
+
+# Same shabang but with splines -------------------------------------------
+
+
+pbc2 <- pbc2
+pbc2.idCR <- crLong(pbc2.id, statusVar = "status",
+                    censLevel = "alive", nameStrata = "CR")
+
+
+
+lmeFit.pbc <- lme(
+  log(serBilir) ~ ns(year, 3) * drug,
+  random = list(id = pdDiag(~ ns(year, 3))),
+  data = pbc2
+)
+
+coxFit4.pbc <- coxph(Surv(years, status2) ~ (drug + age) * CR + strata(CR),
+                     data = pbc2.idCR, x = TRUE)
+
+dform <- list(
+  fixed = ~ 0 + dns(year, 3) + dns(year, 3):as.numeric(drug == "D-penicil"),
+  indFixed = c(2:4, 6:8),
+  random = ~ 0 + dns(year, 3),
+  indRandom = 2:4
+)
+
+jointFit12.pbc <- jointModel(
+  lmeFit.pbc, coxFit4.pbc,
+  timeVar = "year", method = "spline-PH-aGH", CompRisk = TRUE,
+  parameterization = "both",
+  derivForm = dform,
+  interFact = list(value = ~ CR, slope = ~ CR, data = pbc2.idCR)
+)
+
+summary(jointFit12.pbc)
+
+# Try the tangentsss
+object <- jointFit12.pbc
+pb2 <- setDT(pbc2)
+pbc2[, "currval" := fitted(
+  jointFit12.pbc,
+  process = "Longitudinal",
+  type = "Subject"
+)]
+pbc2[, "slope" := ff]
+
+get_int_tangent <- function(x, y, slope) {
+  m <- slope * x
+  int <- -x * slope + y
+  return(int)
+}
+
+pbc2[, int_tang := get_int_tangent(
+  x = year, y = currval, slope = slope
+)]
+
+delta_tan <- 0.33
+pbc2[, ':=' (
+  start_x = year - delta_tan,
+  start_y = int_tang + slope * (year - delta_tan),
+  end_x = year + delta_tan,
+  end_y = int_tang + slope * (year + delta_tan)
+)]
+
+set.seed(08908)
+
+pbc2[id %in% sample(id, replace = FALSE, size = 36)] |>
+  ggplot(aes(year, log(serBilir), group = id)) +
+  geom_point(size = 0.75) +
+  geom_line(aes(y = currval), size = 0.5) +
+  geom_segment(
+    aes(x = start_x, y = start_y, xend = end_x, yend = end_y),
+    size = 1,
+    arrow = arrow(length = unit(0.03, "npc"))
+  ) +
+  facet_wrap(~ id)
+
+
+pbc2[id %in% sample(id, replace = FALSE, size = 9)] |>
+  ggplot(aes(year, log(serBilir), group = id)) +
+  geom_point(size = 0.75) +
+  geom_line(aes(y = currval), size = 0.5) +
+  geom_segment(
+    aes(x = start_x, y = start_y, xend = end_x, yend = end_y),
+    size = 1,
+    arrow = arrow(length = unit(0.03, "npc"))
+  ) +
+  facet_wrap(~ id)
+
 
 
 # Test out Gauss-quadrature here by hand ----------------------------------

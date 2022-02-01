@@ -29,7 +29,7 @@ tar_option_set(packages = project_pkgs, error = "continue")
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
 # Everything except specific target is sequential
-plan(sequential) #plan(callr) # plan sequential
+plan(callr) # plan sequential
 
 
 # Miscellaneous objects ---------------------------------------------------
@@ -74,13 +74,52 @@ targets_list <- list(
                              "NMA RD: ALT", "UD: ALT + ATG")],
       admin_cens = 6
     )
+  ),
+  # Different dataset for each new cell line (due to predicted value, maybe change later)
+  tar_target(
+    NMA_postDLI_datasets_CD3,
+    get_postDLI_datasets(
+      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
+      admin_cens_dli = 12,
+      preDLI_model = preDLI_CD3__jointModel_both,
+      preDLI_datasets = NMA_preDLI_datasets
+    )
+  ),
+  tar_target(
+    NMA_postDLI_datasets_CD3_corr,
+    get_postDLI_datasets(
+      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
+      admin_cens_dli = 12,
+      preDLI_model = preDLI_CD3_jointModel_corr,
+      preDLI_datasets = NMA_preDLI_datasets
+    )
+  ),
+  tar_target(
+    NMA_postDLI_datasets_CD4,
+    get_postDLI_datasets(
+      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
+      admin_cens_dli = 12,
+      preDLI_model = preDLI_CD4_jointModel_both,
+      preDLI_datasets = NMA_preDLI_datasets
+    )
+  ),
+  tar_target(
+    NMA_postDLI_datasets_CD8,
+    get_postDLI_datasets(
+      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
+      admin_cens_dli = 12,
+      preDLI_model = preDLI_CD8_jointModel_both,
+      preDLI_datasets = NMA_preDLI_datasets
+    )
   )
   #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
 )
 
 # Source cohort-specific targets
 source("R/NMA-preDLI-models.R")
+source("R/NMA-postDLI-models.R")
+
 #...
 
-targets_list <- c(targets_list, preDLI_targets)
+targets_list <- c(targets_list, preDLI_targets, postDLI_targets)
 targets_list
