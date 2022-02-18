@@ -126,6 +126,55 @@ p_raw_indiv +
   geom_line(aes(y = curr_val), size = 1, col = "darkblue")
 
 
+# Try with all cell_lines (maybe on original scale)
+melt(
+  data = dat_long[IDAA %in% IDAA_subs],
+  id.vars = c("IDAA", "endpoint7", "intSCT2_5"),
+  measure.vars = patterns("*_abs_log$"),
+  value.name = "count",
+  variable.name = "cell_line"
+) |>
+  ggplot(aes(intSCT2_5, exp(count)^(1/2))) +
+  geom_point(
+    aes(fill = cell_line, shape = cell_line, col = cell_line),
+    size = 3.5,
+    #pch = 21,
+    alpha = 0.8#,
+    #col = "#359fda",
+    #fill = colorspace::lighten("#359fda", amount = 0.3)
+  ) +
+  geom_line(aes(linetype = cell_line, col = cell_line)) +
+  geom_vline(aes(xintercept = endpoint7), linetype = "dashed") +
+  facet_wrap(~ IDAA) +
+  labs(x = "Time since alloHCT (months)", y = "CD3 cell counts") +
+  #scale_y_continuous(
+  #  breaks = log(c(5, 25, 100, 500, 1500)),
+  #  labels = c(5, 25, 100, 500, 1500)
+  #) +
+
+  # Label endpoint
+  geom_label(
+    data = dat_long_last[IDAA %in% IDAA_subs],
+    aes(x = endpoint7 + 0.25, y = log(2.5), label = endpoint_lab),
+    #size = 5,
+    hjust = 0,
+    lineheight = .8,
+    inherit.aes = FALSE,
+    label.size = NA
+  ) +
+  geom_curve(
+    data = dat_long_last[IDAA %in% IDAA_subs],
+    #data = data.frame(x = 2, y = 29, xend = 2.5, yend = 20),
+    mapping = aes(x = endpoint7 + 0.25, y = log(2.5), xend = endpoint7 + 0.025, yend = log(5)),
+    colour = "black",
+    size = 0.75,
+    curvature = 0.2,
+    arrow = arrow(length = unit(0.05, "npc"), type = "open"),
+    inherit.aes = FALSE
+  ) +
+  coord_cartesian(xlim = c(0, 7.5))
+
+
 # pre-DLI: marginal fit ---------------------------------------------------
 
 
