@@ -8,8 +8,9 @@
 library("targets")
 library("tarchetypes")
 library("future")
-library("future.batchtools")
 library("future.callr")
+#library("future.batchtools")
+#
 
 # All packages used by the projects - this is not good for renv
 project_pkgs <- c(
@@ -29,7 +30,7 @@ tar_option_set(packages = project_pkgs, error = "continue")
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
 # Everything except specific target is sequential
-plan(callr) # plan sequential
+#plan(callr) # plan sequential
 
 
 # Miscellaneous objects ---------------------------------------------------
@@ -112,8 +113,12 @@ targets_list <- list(
       preDLI_model = preDLI_CD8_jointModel_both,
       preDLI_datasets = NMA_preDLI_datasets
     )
-  )
+  ),
   #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
+  tar_target(
+    test_cores,
+    future::availableCores()
+  )
 )
 
 # Source cohort-specific targets

@@ -1,17 +1,3 @@
-# Prepare Slurm (figure out how to get this in another file)
-login <- future::tweak(future::remote, workers = "direct_clust")
-slurm_run <- future::tweak(
-  strategy = future.batchtools::batchtools_slurm,
-  template = "~/future_slurm.tmpl",
-  resources = list(
-    walltime = 180, # in minutes
-    ntasks = 1,
-    ncpus = 1,
-    memory = '4G'#,
-    #partition = 'short'
-  )
-)
-
 # List of targets NMA
 preDLI_targets <- list(
   tar_target(
@@ -50,87 +36,69 @@ preDLI_targets <- list(
   ),
   tar_target(
     preDLI_CD3__jointModel_both,
-    command = value(
-      future({
-        run_jointModel(
-          long_obj = preDLI_CD3_long,
-          surv_obj = preDLI_cox,
-          timeVar = "intSCT2_5",
-          parameterization = "both",
-          iter.EM = 1000,
-          interFact = list(
-            "value" = ~ strata(trans) - 1,
-            "slope" = ~ strata(trans) - 1
-          ),
-          derivForm = list(
-            fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
-              dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
-              dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
-            random = ~ 0 + dns(intSCT2_5, 3),
-            indFixed = c(2:4, 8:13, 15:17),
-            indRandom = c(2:4)
-          )
-        )
-      })
-    ),
-    deployment = "worker",
-    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+    run_jointModel(
+      long_obj = preDLI_CD3_long,
+      surv_obj = preDLI_cox,
+      timeVar = "intSCT2_5",
+      parameterization = "both",
+      iter.EM = 1000,
+      interFact = list(
+        "value" = ~ strata(trans) - 1,
+        "slope" = ~ strata(trans) - 1
+      ),
+      derivForm = list(
+        fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
+          dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
+          dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        random = ~ 0 + dns(intSCT2_5, 3),
+        indFixed = c(2:4, 8:13, 15:17),
+        indRandom = c(2:4)
+      )
+    )
   ),
   tar_target(
     preDLI_CD4_jointModel_both,
-    command = value(
-      future({
-        run_jointModel(
-          long_obj = preDLI_CD4_long,
-          surv_obj = preDLI_cox,
-          timeVar = "intSCT2_5",
-          parameterization = "both",
-          iter.EM = 1000,
-          interFact = list(
-            "value" = ~ strata(trans) - 1,
-            "slope" = ~ strata(trans) - 1
-          ),
-          derivForm = list(
-            fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
-              dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
-              dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
-            random = ~ 0 + dns(intSCT2_5, 3),
-            indFixed = c(2:4, 8:13, 15:17),
-            indRandom = c(2:4)
-          )
-        )
-      })
-    ),
-    deployment = "worker",
-    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+    run_jointModel(
+      long_obj = preDLI_CD4_long,
+      surv_obj = preDLI_cox,
+      timeVar = "intSCT2_5",
+      parameterization = "both",
+      iter.EM = 1000,
+      interFact = list(
+        "value" = ~ strata(trans) - 1,
+        "slope" = ~ strata(trans) - 1
+      ),
+      derivForm = list(
+        fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
+          dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
+          dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        random = ~ 0 + dns(intSCT2_5, 3),
+        indFixed = c(2:4, 8:13, 15:17),
+        indRandom = c(2:4)
+      )
+    )
   ),
   tar_target(
     preDLI_CD8_jointModel_both,
-    command = value(
-      future({
-        run_jointModel(
-          long_obj = preDLI_CD8_long,
-          surv_obj = preDLI_cox,
-          timeVar = "intSCT2_5",
-          parameterization = "both",
-          iter.EM = 1000,
-          interFact = list(
-            "value" = ~ strata(trans) - 1,
-            "slope" = ~ strata(trans) - 1
-          ),
-          derivForm = list(
-            fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
-              dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
-              dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
-            random = ~ 0 + dns(intSCT2_5, 3),
-            indFixed = c(2:4, 8:13, 15:17),
-            indRandom = c(2:4)
-          )
-        )
-      })
-    ),
-    deployment = "worker",
-    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+    run_jointModel(
+      long_obj = preDLI_CD8_long,
+      surv_obj = preDLI_cox,
+      timeVar = "intSCT2_5",
+      parameterization = "both",
+      iter.EM = 1000,
+      interFact = list(
+        "value" = ~ strata(trans) - 1,
+        "slope" = ~ strata(trans) - 1
+      ),
+      derivForm = list(
+        fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
+          dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
+          dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        random = ~ 0 + dns(intSCT2_5, 3),
+        indFixed = c(2:4, 8:13, 15:17),
+        indRandom = c(2:4)
+      )
+    )
   ),
   # Use correlated reffs!!
   tar_target(
@@ -144,31 +112,25 @@ preDLI_targets <- list(
   ),
   tar_target(
     preDLI_CD3_jointModel_corr,
-    command = value(
-      future({
-        run_jointModel(
-          long_obj = preDLI_CD3_long_reffcorr,
-          surv_obj = preDLI_cox,
-          timeVar = "intSCT2_5",
-          parameterization = "both",
-          iter.EM = 1000,
-          interFact = list(
-            "value" = ~ strata(trans) - 1,
-            "slope" = ~ strata(trans) - 1
-          ),
-          derivForm = list(
-            fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
-              dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
-              dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
-            random = ~ 0 + dns(intSCT2_5, 3),
-            indFixed = c(2:4, 8:13, 15:17),
-            indRandom = c(2:4)
-          )
-        )
-      })
-    ),
-    deployment = "worker",
-    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+    run_jointModel(
+      long_obj = preDLI_CD3_long_reffcorr,
+      surv_obj = preDLI_cox,
+      timeVar = "intSCT2_5",
+      parameterization = "both",
+      iter.EM = 1000,
+      interFact = list(
+        "value" = ~ strata(trans) - 1,
+        "slope" = ~ strata(trans) - 1
+      ),
+      derivForm = list(
+        fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
+          dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
+          dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        random = ~ 0 + dns(intSCT2_5, 3),
+        indFixed = c(2:4, 8:13, 15:17),
+        indRandom = c(2:4)
+      )
+    )
   ),
   # CD4
   tar_target(
@@ -182,31 +144,25 @@ preDLI_targets <- list(
   ),
   tar_target(
     preDLI_CD4_jointModel_corr,
-    command = value(
-      future({
-        run_jointModel(
-          long_obj = preDLI_CD4_long_reffcorr,
-          surv_obj = preDLI_cox,
-          timeVar = "intSCT2_5",
-          parameterization = "both",
-          iter.EM = 1500,
-          interFact = list(
-            "value" = ~ strata(trans) - 1,
-            "slope" = ~ strata(trans) - 1
-          ),
-          derivForm = list(
-            fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
-              dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
-              dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
-            random = ~ 0 + dns(intSCT2_5, 3),
-            indFixed = c(2:4, 8:13, 15:17),
-            indRandom = c(2:4)
-          )
-        )
-      })
-    ),
-    deployment = "worker",
-    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+    run_jointModel(
+      long_obj = preDLI_CD4_long_reffcorr,
+      surv_obj = preDLI_cox,
+      timeVar = "intSCT2_5",
+      parameterization = "both",
+      iter.EM = 1500,
+      interFact = list(
+        "value" = ~ strata(trans) - 1,
+        "slope" = ~ strata(trans) - 1
+      ),
+      derivForm = list(
+        fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
+          dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
+          dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        random = ~ 0 + dns(intSCT2_5, 3),
+        indFixed = c(2:4, 8:13, 15:17),
+        indRandom = c(2:4)
+      )
+    )
   ),
   #CD8
   tar_target(
@@ -220,30 +176,24 @@ preDLI_targets <- list(
   ),
   tar_target(
     preDLI_CD8_jointModel_corr,
-    command = value(
-      future({
-        run_jointModel(
-          long_obj = preDLI_CD8_long_reffcorr,
-          surv_obj = preDLI_cox,
-          timeVar = "intSCT2_5",
-          parameterization = "both",
-          iter.EM = 1000,
-          interFact = list(
-            "value" = ~ strata(trans) - 1,
-            "slope" = ~ strata(trans) - 1
-          ),
-          derivForm = list(
-            fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
-              dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
-              dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
-            random = ~ 0 + dns(intSCT2_5, 3),
-            indFixed = c(2:4, 8:13, 15:17),
-            indRandom = c(2:4)
-          )
-        )
-      })
-    ),
-    deployment = "worker",
-    resources = tar_resources(future = tar_resources_future(plan = list(login, slurm_run)))
+    run_jointModel(
+      long_obj = preDLI_CD8_long_reffcorr,
+      surv_obj = preDLI_cox,
+      timeVar = "intSCT2_5",
+      parameterization = "both",
+      iter.EM = 1000,
+      interFact = list(
+        "value" = ~ strata(trans) - 1,
+        "slope" = ~ strata(trans) - 1
+      ),
+      derivForm = list(
+        fixed = ~ 0 + dns(intSCT2_5, 3) + dns(intSCT2_5, 3):as.numeric(hirisk == "yes") +
+          dns(intSCT2_5, 3):as.numeric(ATG == "ALT+ATG") +
+          dns(intSCT2_5, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        random = ~ 0 + dns(intSCT2_5, 3),
+        indFixed = c(2:4, 8:13, 15:17),
+        indRandom = c(2:4)
+      )
+    )
   )
 )
