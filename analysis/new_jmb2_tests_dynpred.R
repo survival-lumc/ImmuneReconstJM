@@ -8,6 +8,8 @@ tar_load(
   )
 )
 
+# Try now with cr_setup function (interaction parametrisation)
+
 jm_mod <- jm(
   Surv_object = preDLI_cox,
   Mixed_objects = list(preDLI_CD3_long_reffcorr),

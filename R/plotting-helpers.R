@@ -19,8 +19,7 @@ fitted_slopes_long <- function(object) {
 
   # This is pat-specific slopes
   id <- object$id
-  ff <- c(X.deriv %*% betas[indFixed] +
-            rowSums(Z.deriv * b[id, indRandom, drop = FALSE]))
+  ff <- c(X.deriv %*% betas[indFixed] + rowSums(Z.deriv * b[id, indRandom, drop = FALSE]))
   names(ff) <- names(object$y$y)
   return(ff)
 }

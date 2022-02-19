@@ -74,8 +74,8 @@ get_preDLI_datasets <- function(dat_merged,
 
   # Add ATG variable (only relevant NMA)
   dat[, ATG := factor(
-    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT+ATG", "ALT"),
-    levels = c("ALT", "ALT+ATG")
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "UD(+ATG)", "UD"),
+    levels = c("UD", "UD(+ATG)")
   )]
 
   # Make the wide dataset
@@ -190,28 +190,6 @@ run_preDLI_longitudinal <- function(cell_line,
 
 # Joint modeling helpers --------------------------------------------------
 
-
-
-run_jointModel <- function(long_obj,
-                           surv_obj,
-                           ...) {
-
-  # Set up model matrices of assoc. parameters
-  surv_obj$model$trans1 <- as.numeric(surv_obj$model$`strata(trans)` == "trans=1")
-  surv_obj$model$trans2 <- as.numeric(surv_obj$model$`strata(trans)` == "trans=2")
-  surv_obj$model$trans3 <- as.numeric(surv_obj$model$`strata(trans)` == "trans=3")
-
-  # Fit jointmodel
-  mod <- jointModel(
-    lmeObject = long_obj,
-    survObject = surv_obj,
-    CompRisk = TRUE,
-    method = "spline-PH-aGH",
-    ...
-  )
-
-  return(mod)
-}
 
 
 # jmbayes 2 here..

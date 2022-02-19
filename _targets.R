@@ -7,10 +7,6 @@
 # Workhorse packages
 library("targets")
 library("tarchetypes")
-library("future")
-library("future.callr")
-#library("future.batchtools")
-#
 
 # All packages used by the projects - this is not good for renv
 project_pkgs <- c(
@@ -20,28 +16,18 @@ project_pkgs <- c(
   "ggplot2",
   "mstate",
   "nlme",
-  "kableExtra",
-  "ggrepel",
-  "future"
+  "kableExtra"
 )
 
 tar_option_set(packages = project_pkgs, error = "continue")
 # Uncomment if running scripts interactively:
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
-# Everything except specific target is sequential
-#plan(callr) # plan sequential
-
 
 # Miscellaneous objects ---------------------------------------------------
 
 
-# Reference values for the cells
-cell_reference_values <- cbind.data.frame(
-  "cell_type" = c("CD3", "CD4", "CD8", "NK", "CD19"),
-  "lower_limit" = c(860, 560, 260, 40, 60),
-  "upper_limit" = c(2490, 1490, 990, 390, 1000)
-)
+#...
 
 
 # Analysis pipeline -------------------------------------------------------
@@ -65,60 +51,37 @@ targets_list <- list(
     data.table::data.table(readRDS("data-raw/2021-11-17_v8/variables.rds"))
   ),
   tar_target(dat_merged, prepare_raw_data(lymphocytes_raw, variables_raw)),
-  tar_target(reference_values, data.table(cell_reference_values)),
+  tar_target(
+    reference_values,
+    cbind.data.frame(
+      "cell_type" = c("CD3", "CD4", "CD8", "NK", "CD19"),
+      "lower_limit" = c(860, 560, 260, 40, 60),
+      "upper_limit" = c(2490, 1490, 990, 390, 1000)
+    )
+  ),
 
   # Prepare datasets for analysis (pre-DLI ones)
   tar_target(
     NMA_preDLI_datasets,
     get_preDLI_datasets(
-      # <CHECK THIS IS RIGHT?> 171?
-      dat_merged[TCD2 %in% c(#"NMA UD: ALT", - these are weird protocol
-                             "NMA RD: ALT", "UD: ALT + ATG")],
+      dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")], # NMA UD: ALT" are weird protocol
       admin_cens = 6
     )
-  ),
-  # Different dataset for each new cell line (due to predicted value, maybe change later)
-  tar_target(
-    NMA_postDLI_datasets_CD3,
-    get_postDLI_datasets(
-      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-      admin_cens_dli = 12,
-      preDLI_model = preDLI_CD3__jointModel_both,
-      preDLI_datasets = NMA_preDLI_datasets
-    )
-  ),
-  tar_target(
-    NMA_postDLI_datasets_CD3_corr,
-    get_postDLI_datasets(
-      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-      admin_cens_dli = 12,
-      preDLI_model = preDLI_CD3_jointModel_corr,
-      preDLI_datasets = NMA_preDLI_datasets
-    )
-  ),
-  tar_target(
-    NMA_postDLI_datasets_CD4,
-    get_postDLI_datasets(
-      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-      admin_cens_dli = 12,
-      preDLI_model = preDLI_CD4_jointModel_both,
-      preDLI_datasets = NMA_preDLI_datasets
-    )
-  ),
-  tar_target(
-    NMA_postDLI_datasets_CD8,
-    get_postDLI_datasets(
-      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-      admin_cens_dli = 12,
-      preDLI_model = preDLI_CD8_jointModel_both,
-      preDLI_datasets = NMA_preDLI_datasets
-    )
-  ),
-  #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
-  tar_target(
-    test_cores,
-    future::availableCores()
   )
+
+  # Post-DLI datasets here - or put in other file
+  # tar_target(
+  #   NMA_postDLI_datasets,
+  #   get_postDLI_datasets(
+  #     dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
+  #     admin_cens_dli = 12
+  #   )
+  # )
+
+  #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
+  #tarchetypes::tar_render([and rmd with raw data visualisations, also after data prep..
+  #.. interactive with plotly?])
+  # Or with shiny??
 )
 
 # Source cohort-specific targets
