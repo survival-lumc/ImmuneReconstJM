@@ -220,10 +220,9 @@ run_jointModel <- function(long_obj,
 # Post-DLI helpers --------------------------------------------------------
 
 
+# - This one now to be added with new endpoint in subset..
 get_postDLI_datasets <- function(dat_merged,
-                                 admin_cens_dli = 12, # admin cens months post DLI
-                                 preDLI_model,
-                                 preDLI_datasets) {
+                                 admin_cens_dli = 12) { # admin cens months post DLI
 
   # Variables to keep
   vars <- c(
@@ -274,19 +273,6 @@ get_postDLI_datasets <- function(dat_merged,
     levels = c("ALT", "ALT+ATG")
   )]
 
-  # First predict true current vals from prev model at time of DLI
-  # (for now used fitted values at timepoint just prior)
-  preDLI_dat_long <- preDLI_datasets$long
-  preDLI_dat_long[, preds_subj := fitted(
-    preDLI_model,
-    process = "Longitudinal",
-    type = "Subject"
-  )]
-  setorder(preDLI_dat_long, "IDAA", "intSCT2_5")
-  df_at_dli <- preDLI_dat_long[
-    uDLI_s == "uDLI" & intSCT2_5 <= uDLI, .SD[.N], by = "IDAA"
-    ][, c("IDAA", "preds_subj")]
-
   # Selection happens
   dat <- dat[uDLI_s == "uDLI"] # Only those with DLI
 
@@ -319,9 +305,6 @@ get_postDLI_datasets <- function(dat_merged,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")
-
-  # Add dli col for measure
-  dat_wide <- merge(dat_wide, df_at_dli, by = "IDAA")
 
   # Return them in list
   res <- list("long" = dat, "wide" = dat_wide)
