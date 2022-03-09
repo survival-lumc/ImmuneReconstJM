@@ -19,13 +19,10 @@ get_preDLI_datasets <- function(dat_merged,
     "CD4_abs_log",
     "CD8_abs_log",
     "CD3_abs_log",
-    "intSCT2_5",
+    "intSCT2_7",
     "endpoint7",
     "endpoint7_s",
     "endpoint_specify7",
-    "endpoint6",
-    "endpoint6_s",
-    "endpoint_specify6",
     "uDLI",
     "uDLI_s",
     "TCDmethod",
@@ -60,9 +57,8 @@ get_preDLI_datasets <- function(dat_merged,
     endpoint7_s = "cens"
   )]
 
-  # Measurements at endpoint taken as just prior
-  dat[intSCT2_5 == endpoint7, intSCT2_5 := intSCT2_5 - 0.01]
-  dat <- dat[intSCT2_5 < endpoint7]
+  # Measurements are terminated by endpoint
+  dat <- dat[intSCT2_7 < endpoint7]
 
   # Remove (couple) of missings from cell variables
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
@@ -200,7 +196,7 @@ run_preDLI_longitudinal <- function(cell_line,
 
 # - This one now to be added with new endpoint in subset..
 get_postDLI_datasets <- function(dat_merged,
-                                 admin_cens_dli = 12) { # admin cens months post DLI
+                                 admin_cens_dli = 3) { # Three mo.s after early low-dose
 
   # Variables to keep
   vars <- c(
@@ -208,13 +204,15 @@ get_postDLI_datasets <- function(dat_merged,
     "CD4_abs_log",
     "CD8_abs_log",
     "CD3_abs_log",
-    "intSCT2_5",
+    "intDLI1",
+    "intSCT2_7",
     "endpoint7",
     "endpoint7_s",
     "endpoint_specify7",
-    "sec_endpoint",
-    "sec_endpoint_s",
-    "sec_endpoint_specify",
+    "sec_endpoint2",
+    "sec_endpoint2_s",
+    "sec_endpoint2_specify",
+    "uDLI_actual",
     "uDLI",
     "uDLI_s",
     "TCDmethod",
@@ -231,39 +229,41 @@ get_postDLI_datasets <- function(dat_merged,
   dat <- dat_merged[, ..vars]
 
   # Define the endpoint - rel and nrf are merged
-  dat[, sec_endpoint_s := factor(
-    sec_endpoint_s,
+  dat[, sec_endpoint2_s := factor(
+    sec_endpoint2_s,
     levels = c(
       "censored",
+      "7 days after cellular intervention",
       "non-relapse failure: GvHD",
       "relapse",
       "non-relapse failure: other"
     ),
-    labels = c("cens", "gvhd", "rel_nrf", "rel_nrf")
+    labels = c("cens", "cens", "gvhd", "rel_nrf", "rel_nrf")
   )]
-
-  # Measurements at endpoint taken as just prior
-  dat[intSCT2_5 == sec_endpoint, intSCT2_5 := intSCT2_5 - 0.01]
 
   # Add ATG variable (only relevant NMA)
   dat[, ATG := factor(
-    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "ALT+ATG", "ALT"),
-    levels = c("ALT", "ALT+ATG")
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "UD(+ATG)", "UD"),
+    levels = c("UD", "UD(+ATG)")
   )]
 
   # Selection happens
-  dat <- dat[uDLI_s == "uDLI"] # Only those with DLI
+  dat <- dat[earlylow_DLI == "yes"] # Only those with early DLI
+
+  # Endpoint needs to be in t since DLI
+  dat[, sec_endpoint2 := sec_endpoint2 - uDLI_actual]
+
+  # Measurements at endpoint taken as just prior (13 pats, all cens and one DLI)
+  # (check with Eva anyway)
+  #dat[intDLI1 == sec_endpoint2 & sec_endpoint2_specify != "relapse", intDLI1 := intDLI1 - 0.01]
+  # Not needed in the end
 
   # Admin censoring
-  dat[sec_endpoint >= uDLI + admin_cens_dli, ':=' (
-    sec_endpoint = uDLI + admin_cens_dli,
-    sec_endpoint_s = "cens"
+  dat[sec_endpoint2 >= admin_cens_dli, ':=' (
+    sec_endpoint2 = admin_cens_dli,
+    sec_endpoint2_s = "cens"
   )]
-  dat <- dat[intSCT2_5 < sec_endpoint]
-
-  # Remember to clock reset measurements!!
-  dat <- dat[uDLI < intSCT2_5]
-  dat[, intSCT2_5_reset := intSCT2_5 - uDLI]
+  dat <- dat[intDLI1 < sec_endpoint2 & intDLI1 >= 0]
 
   # Remove (couple) of missings from cell variables
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
@@ -277,7 +277,7 @@ get_postDLI_datasets <- function(dat_merged,
   dat_wide <- data.table::dcast(
     data = dat,
     formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
-      sec_endpoint_s + sec_endpoint + sec_endpoint_specify +
+      sec_endpoint2_s + sec_endpoint2 + sec_endpoint2_specify +
       HLAmismatch_GvH + relation +
       uDLI + uDLI_s + earlylow_DLI + TCD + TCD2 + TCDmethod ~ .,
     fun = length
@@ -297,20 +297,20 @@ run_postDLI_cox <- function(form, dat_wide, ...) {
 
   # Prepare data
   tmat <- trans.comprisk(K = 2, names = c("DLI", "GVHD", "REL_NRF"))
-  covs <- c("CMV_PD", "hirisk", "ATG", "earlylow_DLI",
-            "HLAmismatch_GvH", "relation", "SCT_May2010", "preds_subj")
+  #covs <- c("CMV_PD", "hirisk", "ATG", "earlylow_DLI",
+  #          "HLAmismatch_GvH", "relation", "SCT_May2010")
+  covs <- c("ATG")
 
   dat_wide_prepped <- copy(dat_wide)
   msdat <- msprep(
-    time = c(NA, "sec_endpoint", "sec_endpoint"),
+    time = c(NA, "sec_endpoint2", "sec_endpoint2"),
     status = with(
       dat_wide, cbind(
         NA,
-        1 * (sec_endpoint_s == "gvhd"),
-        1 * (sec_endpoint_s == "rel_nrf")
+        1 * (sec_endpoint2_s == "gvhd"),
+        1 * (sec_endpoint2_s == "rel_nrf")
       )
     ),
-    start = list(state = rep(1, nrow(dat_wide_prepped)), time = dat_wide_prepped$uDLI),
     data = data.frame(dat_wide_prepped),
     trans = tmat,
     keep = covs,

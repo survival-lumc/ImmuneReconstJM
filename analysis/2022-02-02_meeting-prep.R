@@ -32,6 +32,25 @@ source("R/plotting-helpers.R")
 theme_set(theme_bw(base_size = 14))
 
 
+# Subject
+fitted_sub <- fitted(
+  preDLI_CD3_jointModel_corr,
+  process = "Longitudinal",
+  type = "Marginal"
+)
+resid_sub <- residuals(
+  preDLI_CD3_jointModel_corr,
+  process = "Longitudinal",
+  type = "Subject"
+)
+plot(fitted_sub, resid_sub)
+abline(h = 0, lty = 3, col = "grey", lwd = 2)
+panel.smooth(fitted_sub, resid_sub, lwd = 2)
+
+# Marginal
+
+plot(preDLI_CD3_jointModel_corr)
+
 # pre-DLI: intro ----------------------------------------------------------
 
 # Read and add label
@@ -45,13 +64,13 @@ ggplot(dat_wide, aes(n_measurements)) +
   theme_minimal(base_size = 14)
 
 dat_long[, "endpoint_lab" := fcase(
-  endpoint7_s == "cens", "Event-free",
+  endpoint7_s == "cens", "Censored",
   endpoint7_s == "gvhd", "GVHD",
   endpoint7_s == "relapse", "Relapse",
   endpoint7_s == "other_nrf", "Other NRF"
 )]
 dat_long[, endpoint_lab := factor(
-  endpoint_lab, levels = c("Event-free", "GVHD", "Relapse", "Other NRF")
+  endpoint_lab, levels = c("Censored", "GVHD", "Relapse", "Other NRF")
 )]
 
 # Added fitted vals and slope
@@ -83,6 +102,7 @@ IDAA_subs <- sample(levels(dat_long$IDAA), replace = FALSE, size = 16)
 
 # First raw-plot
 p_raw_indiv <- ggplot(dat_long[IDAA %in% IDAA_subs], aes(intSCT2_5, CD3_abs_log)) +
+  #ggplot(dat_long, aes(intSCT2_5, CD3_abs_log)) +
   geom_point(
     size = 3.5, pch = 21,
     alpha = 0.8,

@@ -1,14 +1,12 @@
 tar_load(
   c(
     dat_merged,
-    NMA_preDLI_datasets,
-    preDLI_CD3_long_reffcorr,
-    preDLI_cox,
-    preDLI_CD3_jointModel_corr
+    NMA_preDLI_datasets
   )
 )
 
-# Try now with cr_setup function (interaction parametrisation)
+# Try now with cr_setup function (interaction parametrisation).
+# - also bivariate CD4 and CD8?
 
 jm_mod <- jm(
   Surv_object = preDLI_cox,
