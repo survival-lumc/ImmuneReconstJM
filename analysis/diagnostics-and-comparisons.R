@@ -46,7 +46,7 @@ anova(mods$preDLI_JM_value_corr_CD8, mods$preDLI_JM_both_corr_CD8)
 # Baseline hazard (might need refitting) ----------------------------------
 
 
-tar_load(c(preDLI_cox, postDLI_cox))
+tar_load(c(preDLI_cox, postDLI_cox, NMA_preDLI_datasets, NMA_postDLI_datasets))
 
 basehaz(preDLI_cox, centered = FALSE) |>
   as.data.frame() |>
@@ -60,3 +60,81 @@ basehaz(postDLI_cox, centered = FALSE) |>
 
 # plot(object, 4)
 # lines(with basehaz)
+
+
+# Use cause-specific model for gvhd (pre and post)
+dat_wide <- NMA_preDLI_datasets$wide
+dat_long <- NMA_preDLI_datasets$long
+GVHD_preDLI <- coxph(
+  Surv(endpoint7, endpoint7_s == "relapse") ~ ATG + hirisk,
+  data = dat_wide,
+  x = TRUE
+)
+
+# Plot non-param basehaz
+basehaz(GVHD_preDLI, centered = FALSE) |>
+  ggplot(aes(time, hazard)) + geom_step()
+
+jm_gvhd <- jointModel(
+  lmeObject = preDLI_long_indep_CD4,
+  survObject = GVHD_preDLI,
+  parameterization = "value",
+  method = "spline-PH-aGH",
+  timeVar = "intSCT2_7",
+  iter.EM = 50,
+  iter.qN = 500,
+  lng.in.kn = 3L, # Can vary this; with lapply
+  verbose = TRUE,
+  numeriDeriv = "cd", # more precise
+  eps.Hes = 1e-04
+)
+
+# Now compare marginals
+dat_wide <- dat_wide[order(dat_wide$endpoint7), ]
+dat_wide$gvhd_ind <- with(dat_wide, as.numeric(endpoint7_s == "gvhd"))
+dat_wide$marg_cumhaz <- mice::nelsonaalen(dat_wide, endpoint7, gvhd_ind)
+lines(dat_wide$endpoint7, dat_wide$marg_cumhaz, type = "s")
+
+
+# Try time-dependent covariate tmerge -------------------------------------
+
+
+
+
+
+# Residual plots ----------------------------------------------------------
+
+
+
+plotResid <- function (x, y, col.loess = "black", ...) {
+  plot(x, y, ...)
+  lines(lowess(x, y), col = col.loess, lwd = 2)
+  abline(h = 0, lty = 3, col = "grey", lwd = 2)
+}
+
+# Make wrapper function with ggplot2 facets marginal,subject~ model
+# feeds list of models
+plot(postDLI_JM_corr_CD8)
+
+# Marginal residuals
+resMargY.cd8 <- residuals(postDLI_JM_corr_CD8, process = "Longitudinal", type = "Marginal")
+fitMargY.cd8 <- fitted(postDLI_JM_corr_CD8, process = "Longitudinal", type = "Marginal")
+plotResid(fitMargY.cd8, resMargY.cd8, xlab = "Fitted Values", ylab = "Marginal Residuals")
+
+# Subj-specific residuals
+resSubjY.cd8 <- residuals(postDLI_JM_corr_CD8, process = "Longitudinal", type = "Subject")
+fitSubjY.cd8 <- fitted(postDLI_JM_corr_CD8, process = "Longitudinal", type = "Subject")
+plotResid(fitSubjY.cd8, resSubjY.cd8, xlab = "Fitted Values", ylab = "Subject Residuals")
+
+
+
+# Demo of singularity with rePCA ------------------------------------------
+
+
+mod <- lmer(
+  CD4_abs_log ~ ns(intDLI1, 2) * ATG + CMV_PD + (ns(intDLI1, 2) | IDAA),
+  data = NMA_postDLI_datasets$long
+)
+
+VarCorr(mod)
+summary(rePCA(mod))
