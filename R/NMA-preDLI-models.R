@@ -110,6 +110,7 @@ preDLI_targets <- list(
       lng.in.kn = preDLI_basehaz_knots
     )
   ),
+  # This one gets stuck local minima.. update iter.EM to 250
   tar_target(
     preDLI_JM_both_corr_CD4,
     update(

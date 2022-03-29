@@ -138,3 +138,5 @@ mod <- lmer(
 
 VarCorr(mod)
 summary(rePCA(mod))
+
+# Also using anovas between mixed models with lme..
