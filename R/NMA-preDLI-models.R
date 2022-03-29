@@ -120,7 +120,9 @@ preDLI_targets <- list(
       parameterization = "both",
       interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
       derivForm = derivForm_preDLI,
-      lng.in.kn = preDLI_basehaz_knots
+      lng.in.kn = preDLI_basehaz_knots,
+      iter.EM = 250,
+      verbose = TRUE
     )
   ),
   tar_target(

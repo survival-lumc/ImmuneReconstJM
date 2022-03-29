@@ -39,7 +39,7 @@ fit_stats <- cbind.data.frame(
 
 fit_stats
 anova(mods$preDLI_JM_value_corr_CD3, mods$preDLI_JM_both_corr_CD3)
-anova(mods$preDLI_JM_value_corr_CD4, mods$preDLI_JM_both_corr_CD4) # warning to check!
+anova(mods$preDLI_JM_value_corr_CD4, mods$preDLI_JM_both_corr_CD4) # warning to check! - now Fixed
 anova(mods$preDLI_JM_value_corr_CD8, mods$preDLI_JM_both_corr_CD8)
 
 
