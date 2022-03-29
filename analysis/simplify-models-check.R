@@ -195,3 +195,94 @@ jm2 <- update(
     indRandom = c(2:4)
   )
 )
+
+
+
+# Try CD4 -----------------------------------------------------------------
+
+
+
+CD4_simplif <- run_preDLI_longitudinal(
+  cell_line = "CD4_abs_log",
+  form_fixed = "ns(intSCT2_7, 3) * hirisk * ATG + CMV_PD", #* hirisk + CMV_PD",
+  #form_random = ~ ns(intSCT2_5, 3) | IDAA,
+  form_random = list("IDAA" = pdDiag(~ ns(intSCT2_7, 3))), # 0
+  dat = NMA_preDLI_datasets$long
+)
+
+VarCorr(
+  run_preDLI_longitudinal(
+    cell_line = "CD4_abs_log",
+    form_fixed = "ns(intSCT2_7, 3) * hirisk * ATG + CMV_PD", #* hirisk + CMV_PD",
+    #form_random = ~ ns(intSCT2_5, 3) | IDAA,
+    form_random = list("IDAA" = pdDiag(~ 0 + ns(intSCT2_7, 3))), # 0
+    dat = NMA_preDLI_datasets$long
+  )
+)
+
+VarCorr(
+  run_preDLI_longitudinal(
+    cell_line = "CD4_abs_log",
+    form_fixed = "ns(intSCT2_7, 3) * hirisk * ATG + CMV_PD", #* hirisk + CMV_PD",
+    form_random = ~ 0 + ns(intSCT2_7, 3) | IDAA,
+    #form_random = list("IDAA" = pdDiag(~ 0 + ns(intSCT2_7, 3))), # 0
+    dat = NMA_preDLI_datasets$long
+  )
+)
+
+
+
+# Investigation why does CD4 not converge ---------------------------------
+
+
+tar_load(c(preDLI_CD4_long_indep, preDLI_cox, NMA_preDLI_datasets,
+           preDLI_CD4_long_corr))
+
+# This converges and no hessian issues..? With INDEP
+mod <- jointModel(
+  lmeObject = preDLI_CD4_long_corr,
+  survObject = preDLI_cox,
+  CompRisk = TRUE,
+  method = "spline-PH-aGH",
+  timeVar = "intSCT2_7",
+  parameterization = "value",
+  interFact = list("value" = ~ strata(trans) - 1),
+  verbose = TRUE,
+  iter.EM = 200
+)
+
+#plot log-likelihood
+summary(mod)
+
+# Issue with second basis function? Standardise log CD4 again?
+long_stand <- run_preDLI_longitudinal(
+  cell_line = "scale(CD4_abs_log)",
+  form_fixed = "ns(intSCT2_7, 3) * hirisk * ATG + CMV_PD", #* hirisk + CMV_PD",
+  #form_random = ~ ns(intSCT2_5, 3) | IDAA,
+  form_random = list("IDAA" = pdDiag(~ 0 + ns(intSCT2_7, 3))), # 0
+  dat = NMA_preDLI_datasets$long
+)
+mod$logLik
+mod_both$loglik
+mod_both <- jointModel(
+  lmeObject = preDLI_CD4_long_indep,
+  survObject = preDLI_cox,
+  CompRisk = TRUE,
+  method = "spline-PH-aGH",
+  timeVar = "intSCT2_7",
+  parameterization = "both",
+  interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
+  derivForm = list(
+    fixed = ~ 0 + dns(intSCT2_7, 3) +
+      dns(intSCT2_7, 3):as.numeric(hirisk == "yes") +
+      dns(intSCT2_7, 3):as.numeric(ATG == "ALT+ATG") +
+      dns(intSCT2_7, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+    random = ~ 0 + dns(intSCT2_7, 3),
+    indFixed = c(2:4, 8:13, 15:17),
+    indRandom = c(1:3)
+  ),
+  verbose = TRUE
+)
+
+# Standardise CD4s instead of log?
+

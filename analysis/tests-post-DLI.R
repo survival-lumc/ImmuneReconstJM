@@ -1,8 +1,14 @@
 # Do DLI testing here and run for tomorrow
+
+# - Later try multivar jmbayes2 with CD8 and CD4 (only pre-DLI, current val)
+
+theme_set(theme_bw(base_size = 14))
+
 tar_meta(fields = c(name, time, seconds, warnings)) |>  View()
+
 tar_load(
   c(
-    dat_merged,
+    NMA_preDLI_datasets,
     preDLI_CD4_JM_value_corr,
     preDLI_CD4_JM_value_indep,
     preDLI_CD3_JM_value_corr,
@@ -12,27 +18,152 @@ tar_load(
   )
 )
 
+# Correlated vs independent random effects
 anova(preDLI_CD3_JM_value_indep, preDLI_CD3_JM_value_corr)
 anova(preDLI_CD4_JM_value_indep, preDLI_CD4_JM_value_corr)
 anova(preDLI_CD8_JM_value_indep, preDLI_CD8_JM_value_corr)
 
 # Check the correlated ones
 preDLI_CD3_JM_value_corr |>  summary()
-preDLI_CD4_JM_value_corr |>  summary() # CD4 has issues with correlated reffs
+preDLI_CD4_JM_value_corr |>  summary() # CD4 has issues with Hessian, but converges fine
 preDLI_CD8_JM_value_corr |>  summary()
-plot(preDLI_CD4_JM_value_indep, 1)
 plot(preDLI_CD4_JM_value_corr, 1)
+plot(preDLI_CD4_JM_value_corr, 2)
+
+
+# Pre-DLI demo ------------------------------------------------------------
 
 
 
-# Post-DLI testing --------------------------------------------------------
 
-theme_set(theme_bw(base_size = 14))
-tar_load(NMA_postDLI_datasets)
+# Post-DLI, raw plots -----------------------------------------------------
+
+
+
+tar_load(c(NMA_postDLI_datasets, postDLI_JM_corr_CD3))
 
 dat_long <- NMA_postDLI_datasets$long
 dat_wide <- NMA_postDLI_datasets$wide
 #ids_oneobs <- dat_long[, .N, by = IDAA][N == 1][["IDAA"]]
+
+
+dat_long |>
+  melt.data.table(
+    measure.vars = patterns("*_log$"),
+    variable.name = "cell_line",
+    value.name = "count"
+  ) |>
+  ggplot(aes(intDLI1, count, col = cell_line)) +
+  geom_point(aes(shape = cell_line), size = 4, alpha = 0.75) +
+  facet_wrap(sec_endpoint2_s ~ IDAA) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_bw(base_size = 14) +
+  labs(y = "Count", x = "Time since early/low DLI (months)")
+
+
+dat_long |>
+  melt.data.table(
+    measure.vars = patterns("*_log$"),
+    variable.name = "cell_line",
+    value.name = "count"
+  ) |>
+  ggplot(aes(intDLI1, count, col = ATG, group = IDAA)) +
+  geom_line(size = 1) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  facet_grid(sec_endpoint2_s ~ cell_line) +
+  theme_bw(base_size = 14) +
+  labs(y = "Count", x = "Time since early/low DLI (months)")
+
+
+
+# Try random effects plot -------------------------------------------------
+
+
+GGally::ggpairs(
+  data = as.data.frame(ranef(postDLI_JM_corr_CD3))
+) +
+  theme_bw(base_size = 14)
+
+# Post-DLI CD4 ------------------------------------------------------------
+
+# Note postDLI cox omits ATG.2 due to event numbers
+# Also postDLI model has less baseline hazard knots
+table(dat_wide$sec_endpoint2_s)
+table(dat_wide$sec_endpoint2_s, dat_wide$ATG)
+summary(postDLI_JM_corr_CD3)
+
+# Predict marginal
+newdat_postDLI <- expand.grid(
+  "ATG" = levels(dat_long$ATG),
+  "CMV_PD" = levels(dat_long$CMV_PD),
+  "intDLI1" = seq(0, 3, by = 0.01)
+)
+
+predict(
+  postDLI_JM_corr_CD3,
+  newdata = newdat_postDLI,
+  interval = "confidence",
+  type = "Marginal",
+  returnData = TRUE
+) |>
+  ggplot(aes(intDLI1, pred, col = ATG, group = ATG)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 0.5,
+    col = NA
+  ) +
+  geom_line(size = 1.25) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(ylim = c(0, 8)) +
+  facet_wrap(~ CMV_PD) +
+  theme_bw(base_size = 14) +
+  labs(y = "Count", x = "Time since early/low DLI (months)")
+
+
+# Try individual predictions
+dat_long[, "fitted_ind" := fitted(
+  postDLI_JM_corr_CD3,
+  process = "Longitudinal",
+  type = "Subject"
+)]
+
+
+ggplot(dat_long, aes(intDLI1, CD3_abs_log)) +
+  geom_point(
+    size = 3.5, pch = 21,
+    alpha = 0.8,
+    col = "#359fda",
+    fill = colorspace::lighten("#359fda", amount = 0.3)
+  ) +
+  geom_line(aes(y = fitted_ind), size = 1.25) +
+  geom_point(aes(y = fitted_ind), size = 1.5) +
+  facet_wrap(~ IDAA) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(ylim = c(0, 8)) +
+  theme_bw(base_size = 14) +
+  labs(y = "Count", x = "Time since early/low DLI (months)")
+
+# Plot residuals
+plot(postDLI_JM_corr_CD3, 1)
+plot(postDLI_CD4_JM_value_corr, 2)
+
+
+# Other -------------------------------------------------------------------
+
+
 
 ggplot(
   dat_long,
@@ -69,13 +200,24 @@ VarCorr(postDLI_CD4)
 
 # Long CD3 - change function name
 postDLI_CD4 <- run_preDLI_longitudinal(
-  cell_line = "CD4_abs_log",
-  form_fixed = "ns(intDLI1, 1) * ATG + CMV_PD", # remove cmvpd
+  cell_line = "CD8_abs_log",
+  form_fixed = "ns(intDLI1, 2) * ATG + CMV_PD", # remove cmvpd
+  form_random = list(IDAA = pdDiag(~ ns(intDLI1, 2))),
+  #form_random = ~ ns(intDLI1, 2) | IDAA,
+  dat = NMA_postDLI_datasets$long#[!(IDAA %in% ids_oneobs)]
+)
+VarCorr(postDLI_CD4)
+
+postDLI_CD4_ind <- run_preDLI_longitudinal(
+  cell_line = "CD8_abs_log",
+  form_fixed = "ns(intDLI1, 2) * ATG + CMV_PD", # remove cmvpd
   #form_random = list(IDAA = pdDiag(~ ns(intDLI1, 1))),
-  form_random = ~ ns(intDLI1, 1) | IDAA,
+  form_random = ~ ns(intDLI1, 2) | IDAA,
   dat = NMA_postDLI_datasets$long#[!(IDAA %in% ids_oneobs)]
 )
 
+anova(postDLI_CD4, postDLI_CD4_ind)
+VarCorr(postDLI_CD4_ind)
 
 plot(postDLI_CD4)
 VarCorr(postDLI_CD4)
@@ -144,26 +286,7 @@ predict(
   facet_wrap(~ CMV_PD)
 
 
-dat_long[, "fitted_JM" := fitted(
-  postDLI_CD4_JM,
-  process = "Longitudinal",
-  type = "Subject"
-)]
 
-
-ggplot(
-  dat_long,
-  aes(intDLI1, CD4_abs_log)
-) +
-  geom_point(
-    size = 3.5, pch = 21,
-    alpha = 0.8,
-    col = "#359fda",
-    fill = colorspace::lighten("#359fda", amount = 0.3)
-  ) +
-  geom_line(aes(y = fitted_JM), size = 1.25) +
-  geom_point(aes(y = fitted_JM), size = 1.5) +
-  facet_wrap(~ IDAA)
 
 
 endpoints_df <- dat_long[order(intDLI1), .SD[.N], by = IDAA]
@@ -387,33 +510,4 @@ ggplot(
 # Plot all three cell lines -----------------------------------------------
 
 
-dat_long |>
-  melt.data.table(
-    measure.vars = patterns("*_log$"),
-    variable.name = "cell_line",
-    value.name = "count"
-  ) |>
-  ggplot(aes(intDLI1, count, col = cell_line)) +
-  geom_point(aes(shape = cell_line), size = 4, alpha = 0.75) +
-  facet_wrap(sec_endpoint2_s ~ IDAA) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  theme_bw(base_size = 14)
 
-
-dat_long |>
-  melt.data.table(
-    measure.vars = patterns("*_log$"),
-    variable.name = "cell_line",
-    value.name = "count"
-  ) |>
-  ggplot(aes(intDLI1, count, col = ATG, group = IDAA)) +
-  geom_line(size = 1) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  facet_grid(sec_endpoint2_s ~ cell_line) +
-  theme_bw(base_size = 14)

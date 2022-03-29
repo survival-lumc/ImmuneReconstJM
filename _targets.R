@@ -27,10 +27,11 @@ tar_option_set(packages = project_pkgs)#, error = "continue")
 
 plan(callr)
 
-# Miscellaneous objects ---------------------------------------------------
+
+# Misc objects ------------------------------------------------------------
 
 
-#...
+cell_lines <- list("cell_line" = paste0("CD", c(3, 4, 8)))
 
 
 # Analysis pipeline -------------------------------------------------------
@@ -72,7 +73,7 @@ targets_list <- list(
     )
   ),
 
-  # Prepare dataset for gvhd sensitivity
+  # Prepare datasets for gvhd sensitivity analysis (pre-DLI, endpoint set week earlier if gvhd)
   tar_target(
     NMA_preDLI_datasets_gvhd,
     get_preDLI_datasets(
@@ -83,26 +84,33 @@ targets_list <- list(
     )
   ),
 
-  # Post-DLI datasets here - or put in other file
+  # Post-DLI datasets
   tar_target(
     NMA_postDLI_datasets,
     get_postDLI_datasets(
       dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
       admin_cens_dli = 3
     )
+  ),
+  # GVHD sensitivity (probs not enough measurements now)
+  tar_target(
+    NMA_postDLI_datasets_gvhd,
+    get_postDLI_datasets(
+      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")][
+        sec_endpoint2_s == "non-relapse failure: GvHD", sec_endpoint2 := sec_endpoint2 - (7 / 30.44)
+      ],
+      admin_cens_dli = 3
+    )
   )
-
   #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
   #tarchetypes::tar_render([and rmd with raw data visualisations, also after data prep..
   #.. interactive with plotly?])
   # Or with shiny??
 )
 
-# Source cohort-specific targets
+# Source targets
 source("R/NMA-preDLI-models.R")
 source("R/NMA-postDLI-models.R")
-
-#...
 
 targets_list <- c(targets_list, preDLI_targets, postDLI_targets)
 targets_list
