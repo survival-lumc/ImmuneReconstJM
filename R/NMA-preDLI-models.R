@@ -43,8 +43,7 @@ preDLI_targets <- list(
       timeVar = "intSCT2_7",
       parameterization = "value",
       interFact = list("value" = ~ strata(trans) - 1),
-      iter.EM = 100,
-      iter.qN = 500,
+      iter.qN = 1000,
       lng.in.kn = preDLI_basehaz_knots,
       numeriDeriv = "cd",
       eps.Hes = 1e-04
@@ -60,8 +59,7 @@ preDLI_targets <- list(
       timeVar = "intSCT2_7",
       parameterization = "value",
       interFact = list("value" = ~ strata(trans) - 1),
-      iter.EM = 50,
-      iter.qN = 500,
+      iter.qN = 1000,
       lng.in.kn = preDLI_basehaz_knots,
       numeriDeriv = "cd",
       eps.Hes = 1e-04
@@ -77,53 +75,48 @@ preDLI_targets <- list(
       timeVar = "intSCT2_7",
       parameterization = "value",
       interFact = list("value" = ~ strata(trans) - 1),
-      iter.EM = 100,
-      iter.qN = 500,
+      iter.qN = 1000,
       lng.in.kn = preDLI_basehaz_knots,
       numeriDeriv = "cd",
       eps.Hes = 1e-04,
       verbose = TRUE
     )
-  )#,
+  ),
 
   # -- Both, corr reffs
-  # tar_target(
-  #   preDLI_JM_both_corr_CD3,
-  #   update(
-  #     preDLI_JM_value_corr_CD3,
-  #     lmeObject = preDLI_long_corr_CD3,
-  #     survObject = preDLI_cox,
-  #     parameterization = "both",
-  #     interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
-  #     derivForm = derivForm_preDLI,
-  #     iter.EM = 500
-  #   )
-  # ),
-  # tar_target(
-  #   preDLI_JM_both_corr_CD4,
-  #   update(
-  #     preDLI_JM_value_corr_CD4,
-  #     lmeObject = preDLI_long_corr_CD4,
-  #     survObject = preDLI_cox,
-  #     parameterization = "both",
-  #     interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
-  #     derivForm = derivForm_preDLI,
-  #     iter.EM = 500
-  #   )
-  # ),
-  # tar_target(
-  #   preDLI_JM_both_corr_CD8,
-  #   update(
-  #     preDLI_JM_value_corr_CD8,
-  #     lmeObject = preDLI_long_corr_CD8,
-  #     survObject = preDLI_cox,
-  #     parameterization = "both",
-  #     interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
-  #     derivForm = derivForm_preDLI,
-  #     iter.EM = 500
-  #   )
-  # )
-
+  tar_target(
+    preDLI_JM_both_corr_CD3,
+    update(
+      preDLI_JM_value_corr_CD3,
+      lmeObject = preDLI_long_corr_CD3,
+      survObject = preDLI_cox,
+      parameterization = "both",
+      interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
+      derivForm = derivForm_preDLI
+    )
+  ),
+  tar_target(
+    preDLI_JM_both_corr_CD4,
+    update(
+      preDLI_JM_value_corr_CD4,
+      lmeObject = preDLI_long_corr_CD4,
+      survObject = preDLI_cox,
+      parameterization = "both",
+      interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
+      derivForm = derivForm_preDLI
+    )
+  ),
+  tar_target(
+    preDLI_JM_both_corr_CD8,
+    update(
+      preDLI_JM_value_corr_CD8,
+      lmeObject = preDLI_long_corr_CD8,
+      survObject = preDLI_cox,
+      parameterization = "both",
+      interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
+      derivForm = derivForm_preDLI
+    )
+  )
 )
 
 
