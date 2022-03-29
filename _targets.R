@@ -21,7 +21,7 @@ project_pkgs <- c(
   "kableExtra"
 )
 
-tar_option_set(packages = project_pkgs)#, error = "continue")
+tar_option_set(packages = project_pkgs, error = "continue")
 # Uncomment if running scripts interactively:
 # sapply(project_pkgs, function(pkg) require(pkg, character.only = TRUE)); rm(project_pkgs)
 
