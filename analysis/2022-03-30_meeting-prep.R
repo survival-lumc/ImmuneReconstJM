@@ -39,7 +39,7 @@ newdat_postDLI <- expand.grid(
 # Helper functions --------------------------------------------------------
 
 
-# Make table summary, ready to feed into kable
+# Make table summary, ready to feed into kable -> this is already in R/!
 table_mod_summary <- function(model) {
 
   # Event summary extract
@@ -90,6 +90,7 @@ table_mod_summary <- function(model) {
 # Summary pre-DLI models --------------------------------------------------
 
 table(dat_wide$endpoint7_s)
+table(dat_wide$endpoint7_s, dat_wide$ATG)
 
 
 # Marginals
@@ -125,10 +126,10 @@ rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
     col = "Donor type"
   ) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(1, 5, 25, 100, 500, 1500)),
+    labels = c(1, 5, 25, 100, 500, 1500)
   ) +
-  coord_cartesian(xlim = c(0, 6), ylim = c(0, log(1500))) + # add a common ylim for all
+  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) + # add a common ylim for all
   scale_color_manual(
     labels = c("Related", "Unrelated (+ATG)"),
     values = c("brown", "darkblue")
@@ -184,13 +185,14 @@ table_mod_summary(mods$preDLI_JM_both_corr_CD8) %>%
   pack_rows("Relapse", 5, 8) %>%
   pack_rows("NRF: Other", 9, 11)
 
+# Show anovas here?
+
 
 # Summary of post DLI models ----------------------------------------------
 
 
 table(dat_wide_postDLI$sec_endpoint2_s)
-table(dat_wide_postDLI$sec_endpoint2_s, dat_wide_postDLI$ATG)
-
+table(dat_wide_postDLI$sec_endpoint2_s, dat_wide_postDLI$ATG) # Silly to estimate effect of ATG?
 
 mods_postDLI_value <- list(
   "CD3" = mods$postDLI_JM_corr_CD3,
@@ -224,10 +226,10 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
     col = "Donor type"
   ) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(1, 5, 25, 100, 500, 1500)),
+    labels = c(1, 5, 25, 100, 500, 1500)
   ) +
-  coord_cartesian(xlim = c(0, 6), ylim = c(0, log(1500))) +
+  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) +
   scale_color_manual(
     labels = c("Related", "Unrelated (+ATG)"),
     values = c("brown", "darkblue")
@@ -271,8 +273,8 @@ dat_long_postDLI |>
   geom_point(aes(shape = cell_line), size = 4, alpha = 0.75) +
   facet_wrap(sec_endpoint2_s ~ IDAA) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(1, 5, 25, 100, 500, 1500)),
+    labels = c(1, 5, 25, 100, 500, 1500)
   ) +
   theme_bw(base_size = 14) +
   labs(y = "Count", x = "Time since early/low DLI (months)")
@@ -288,8 +290,8 @@ dat_long_postDLI |>
   ggplot(aes(intDLI1, count, linetype = ATG, col = ATG, group = IDAA)) +
   geom_line(size = 1) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(1, 5, 25, 100, 500, 1500)),
+    labels = c(1, 5, 25, 100, 500, 1500)
   ) +
   facet_grid(sec_endpoint2_s ~ cell_line) +
   theme_bw(base_size = 14) +
@@ -343,9 +345,9 @@ melt.data.table(
   geom_vline(aes(xintercept = sec_endpoint2), linetype = "dashed") +
   facet_wrap(~ IDAA) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
+    breaks = log(c(1, 5, 25, 100, 500, 1500)),
+    labels = c(1, 5, 25, 100, 500, 1500)
+  )+
   scale_color_brewer(palette = "Dark2") +
   coord_cartesian(xlim = c(0, 5.5), ylim = c(0, log(1500))) +
   labs(y = "Count", x = "Time since early/low DLI (months)")

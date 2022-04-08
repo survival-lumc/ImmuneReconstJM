@@ -187,8 +187,13 @@ run_preDLI_longitudinal <- function(cell_line,
 # Joint modeling helpers --------------------------------------------------
 
 
-
-# jmbayes 2 here..
+# Add indiv trans to model mat
+tweak_preDLI_modmat <- function(cox_model) {
+  cox_model$model$trans1 <- as.numeric(cox_model$model$`strata(trans)` == "trans=1")
+  cox_model$model$trans2 <- as.numeric(cox_model$model$`strata(trans)` == "trans=2")
+  cox_model$model$trans3 <- as.numeric(cox_model$model$`strata(trans)` == "trans=3")
+  return(cox_model)
+}
 
 
 # Post-DLI helpers --------------------------------------------------------

@@ -10,14 +10,12 @@ library("tarchetypes")
 library("future")
 library("future.callr")
 
-# All packages used by the projects - this is not good for renv
+# All packages used by the projects - this is not good for renv (add instead to _packages.R files)
 project_pkgs <- c(
   "data.table",
   "JM",
-  #"JMbayes2",
   "ggplot2",
   "mstate",
-  "nlme",
   "kableExtra"
 )
 
@@ -72,33 +70,11 @@ targets_list <- list(
       admin_cens = 6
     )
   ),
-
-  # Prepare datasets for gvhd sensitivity analysis (pre-DLI, endpoint set week earlier if gvhd)
-  tar_target(
-    NMA_preDLI_datasets_gvhd,
-    get_preDLI_datasets(
-      dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")][
-        endpoint7_s == "non-relapse failure: GvHD", endpoint7 := endpoint7 - (7 / 30.44)
-      ],
-      admin_cens = 6
-    )
-  ),
-
   # Post-DLI datasets
   tar_target(
     NMA_postDLI_datasets,
     get_postDLI_datasets(
       dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")],
-      admin_cens_dli = 3
-    )
-  ),
-  # GVHD sensitivity (probs not enough measurements now)
-  tar_target(
-    NMA_postDLI_datasets_gvhd,
-    get_postDLI_datasets(
-      dat_merged = dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")][
-        sec_endpoint2_s == "non-relapse failure: GvHD", sec_endpoint2 := sec_endpoint2 - (7 / 30.44)
-      ],
       admin_cens_dli = 3
     )
   )
