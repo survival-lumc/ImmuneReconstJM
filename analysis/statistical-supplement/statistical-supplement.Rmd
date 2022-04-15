@@ -1,0 +1,57 @@
+---
+title: "\\helveticaitalic{Supplementary Material}"
+author: "Eva Koster et al."
+output: 
+  pdf_document:
+    number_sections: true
+documentclass: frontiers-suppmat
+classoption: utf8
+bibliography: immune-reconst.bib
+biblio-style: Frontiers-Vancouver
+header-includes: 
+  - \usepackage{url,hyperref,lineno,microtype}
+  - \usepackage[onehalfspacing]{setspace}
+  - \onecolumn
+  - \firstpage{1}
+---
+
+```{r setup, include=FALSE}
+# Knitr set-up
+knitr::opts_knit$set(root.dir = here::here())
+knitr::opts_chunk$set(
+  echo = FALSE, 
+  out.width = "100%", 
+  warning = FALSE, 
+  message = FALSE
+)
+#options(knitr.kable.NA = '', scipen = 999)
+
+# Also see https://github.com/hughjonesd/latexdiffr for latexdiffr
+# test!!
+
+# Set seed and theme
+set.seed(8498456)
+```
+
+# A SECTION
+
+Something something joint models. @rizopoulosJointModelsLongitudinal2012
+
+## Subsection
+
+```{r test-fig, fig.cap = "Noice mate"}
+# Note only use dashes in chunk names
+# Also no underscores in cls files
+hist(rnorm(1000))
+```
+
+
+## Subsubting
+
+## To-do
+
+- Residual plots
+- Notation for mixed and survival submodels, pre and post-DLI
+- tbd
+
+# References
