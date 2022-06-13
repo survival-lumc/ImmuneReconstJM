@@ -43,18 +43,30 @@ The two primary research questions addressed in the main article are
 
 1. What is the effect of early low dose donor lymphocyte infusion (DLI) on the cell count kinetics within the T-cell compartment during the first 6 months after allogeneic stem cell transplantation (alloSCT)?
 
-2. Are the T-cell kinetics from time of first DLI (early or late) associated with the risk of Graft-versus-Host-Disease (GvHD)?
+2. Are the T-cell kinetics from time of early low dose DLI associated with the risk of Graft-versus-Host-Disease (GvHD)?
 
 To answer both questions, the data at hand are comprised of
 
 - Baseline patient characteristics
 - T-cell absolute counts measured routinely at discrete timepoints starting from time of alloSCT <!-- Add swimmer plot here -->
 - Time of standard prophylactic DLI, and time of early low dose DLI (if given)
-- Time to various clinical events occuring during follow-up, such a GvHD
+- Time to various clinical events occuring during follow-up, such as GvHD or relapse of the underlying disease
 
 <!-- Do we want raw data overview here, maybe the swimmer plot -->
 
 Explanation here of `dropout', the kind of cohort, issue with mixed models..
+
+## Question 1: effect of early low dose DLI on cell count kinetics
+
+
+
+<Naive approaches, descriptives, dividing based on endpoint
+Linear models, mixed models, Rouanet paper, defining a population
+Choices to make in joint model, additional complexity with each extra competing risk
+Inadequate sample size, baseline hazard complexity, optimisation complexity
+Needing a survival model even though not necessarily interested in survival> 
+
+[Write some stuff here, organise placeholders for plots, divide stuff up later, find references in Zotero]
 
 ## Pre-DLI model
 
@@ -76,7 +88,7 @@ For longitudinal we assume $y_i(t) = m_i(t) + \epsilon_i(t)$, where
   & \beta_4 \{B_n(t,\lambda_1) \times \text{ITT}_i \} + \beta_5 \{B_n(t,\lambda_2) \times \text{ITT}_i \} + \beta_6 \{B_n(t,\lambda_3) \times \text{ITT}_i \} + \\
   & \beta_7 \{B_n(t,\lambda_1) \times \text{UD}_i \} + \beta_8 \{B_n(t,\lambda_2) \times \text{UD}_i \} + \beta_9 \{B_n(t,\lambda_3) \times \text{UD}_i \} + \\
   & \beta_{10} \{B_n(t,\lambda_1) \times \text{ITT}_i \times \text{UD}_i \} + \beta_{11} \{B_n(t,\lambda_2) \times \text{ITT}_i \times \text{UD}_i \} \\
-  & \beta_{12} \{B_n(t,\lambda_3) \times \text{ITT}_i \times \text{UD}_i \} \\
+  & \beta_{12} \{B_n(t,\lambda_3) \times \text{ITT}_i \times \text{UD}_i \} + \\
   & \beta_{13}\text{CMV}_i + \beta_{14}\text{ITT}_i + \beta_{15}\text{UD}_i + \beta_{16} \{\text{ITT}_i \times \text{UD}_i\}
 \end{align*}
 
