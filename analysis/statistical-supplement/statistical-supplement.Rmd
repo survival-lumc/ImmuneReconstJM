@@ -25,12 +25,27 @@ knitr::opts_chunk$set(
   warning = FALSE, 
   message = FALSE
 )
-#options(knitr.kable.NA = '', scipen = 999)
 
-# Also see https://github.com/hughjonesd/latexdiffr for latexdiffr
+# Version control: https://github.com/hughjonesd/latexdiffr for latexdiffr
 
-# Set seed and theme
+# Load libraries, set seed and theme
 set.seed(8498456)
+library(data.table)
+library(targets)
+library(ggplot2)
+
+theme_set(theme_bw(base_size = 14))
+```
+
+<!-- Load targets objects -->
+
+```{r load-objs}
+tar_load(
+  c(
+    NMA_preDLI_datasets,
+    dat_merged
+  )
+)
 ```
 
 The present supplementary material is a `Statistical Supplement' to the main article, outlining the methods used and the motivation behind them.
@@ -54,11 +69,46 @@ To answer both questions, the data at hand are comprised of
 
 <!-- Do we want raw data overview here, maybe the swimmer plot -->
 
+```{r test-swimmer, eval=FALSE}
+dat_long <- NMA_preDLI_datasets$long
+dat_wide <- NMA_preDLI_datasets$wide
+dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")]
+
+# Prep endpoints 
+dat_evs <- melt.data.table(
+  data = dat_wide,
+  id.vars = "IDAA",
+  measure.vars = c("uDLI", "endpoint7"),
+  variable.name = "event_id",
+  value.name = "intSCT2_7"
+)
+dat_evs[intSCT2_7 > 6]
+
+# Actually better to do this with raw data
+
+# See https://ggplot2-book.org/facet.html
+dat_long |> 
+  ggplot(aes(x = intSCT2_7, y = reorder(IDAA, endpoint7))) +
+  geom_line(aes(group = IDAA), linetype = "dotted", alpha = 0.5) +
+  geom_point() +
+  facet_grid(
+    endpoint7_s ~ ., 
+    #labeller = labeller(endpoint5_s = event_labs),
+    scales = "free_y",
+    space = "free"
+  ) +
+  labs(x = "Time since alloHCT (months)", y = "Patient ID") + 
+  theme_light(base_size = 14) +
+  theme(
+    legend.position = "none",
+    axis.text.y = element_blank(), 
+    panel.grid.major.y = element_blank()
+  ) 
+```
+
 Explanation here of `dropout', the kind of cohort, issue with mixed models..
 
 ## Question 1: effect of early low dose DLI on cell count kinetics
-
-
 
 <Naive approaches, descriptives, dividing based on endpoint
 Linear models, mixed models, Rouanet paper, defining a population
@@ -116,12 +166,6 @@ And longitudinal
 \end{align*}
 
 ## Subsection
-
-```{r test-fig, fig.cap = "Noice mate"}
-# Note only use dashes in chunk names
-# Also no underscores in cls files
-hist(rnorm(1000))
-```
 
 
 ## Subsubting

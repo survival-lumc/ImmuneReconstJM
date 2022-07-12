@@ -260,6 +260,171 @@ rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
 ggsave("analysis/figures/preDLI_trajectories.png",dpi=300,width=6,height=8) # this is Figure 2
 
 
+
+# Attempt zoomed-in  ------------------------------------------------------
+
+
+rbindlist(marg_preds_preDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 1,#alpha = 0.5,
+              col = NA) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
+  # Add repel labels?
+  facet_grid(
+    facets = cell_line ~ .,
+    labeller = as_labeller(
+      c(#"-/-"="CMV: -/-", "other P/D"="CMV: other",
+        "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
+        #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
+      )
+    )
+  ) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) + # add a common ylim for all
+  scale_color_manual(
+    labels = c("RD", "UD+ATG"),
+    values = c("brown", "darkblue")
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes (high risk)"),
+    values = c("solid", "dotdash")
+  ) +
+  theme(legend.position = "bottom")
+
+# Pick nicer colours..
+# Use cowplot/ggpubr instead of faceting grid
+
+# Get zoomed in plot
+rbindlist(marg_preds_preDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 1, col = NA) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
+  # Add repel labels?
+  facet_grid(
+    facets = cell_line ~ .,
+    labeller = as_labeller(
+      c(#"-/-"="CMV: -/-", "other P/D"="CMV: other",
+        "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
+        #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
+      )
+    )
+  ) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(xlim = c(2.5, 6), ylim = c(log(10), log(500))) + # add a common ylim for all
+  scale_color_manual(
+    labels = c("RD", "UD+ATG"),
+    values = c("brown", "darkblue")
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes (high risk)"),
+    values = c("solid", "dotdash")
+  ) +
+  theme(legend.position = "bottom")
+
+# Get histograms of times of early/low-dose DLIs
+
+
+# Custom plot just for CD4 ------------------------------------------------
+
+# Make zoomed-in version
+p_CD4_zoomed <-
+data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 1,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(xlim = c(2.5, 6), ylim = c(log(10), log(250))) +
+  scale_color_manual(
+    labels = c("RD", "UD+ATG"),
+    values = c("brown", "darkblue")
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes (high risk)"),
+    values = c("solid", "dotdash")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+
+p_CD4_zoomed
+
+#p_CD4_full <-
+data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 1,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500)), clip = "off") +
+  scale_color_manual(
+    labels = c("RD", "UD+ATG"),
+    values = c("brown", "darkblue")
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes (high risk)"),
+    values = c("solid", "dotdash")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom",
+        plot.margin = unit(c(1, 15, 1, 1), "lines")) +
+  geom_rect(aes(xmin = 2.5, xmax = 6,
+                ymin = log(10), ymax = log(250)), col = "black",
+            linetype = "dashed", fill = NA) +
+  annotation_custom(
+    ggplotGrob(p_CD4_zoomed),
+    xmin = 6.1,
+    xmax = 8,
+    ymin = log(5),
+    ymax = log(200)
+  )
+
+# Or switch around? Show zoomed one in main, show full follow-up in sub plot?
+
+
 # Summary of post DLI models ----------------------------------------------
 
 dat_wide_postDLI <- NMA_postDLI_datasets$wide
