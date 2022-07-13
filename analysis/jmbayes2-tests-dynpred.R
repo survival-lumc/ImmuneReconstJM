@@ -602,3 +602,55 @@ cbind(
 )
 
 
+# Test also for other two submodels (stanjm and jmbayes2) -----------------
+
+
+
+# Try with merline?
+library(merlin)
+library(survival)
+
+#structure for own data?
+
+
+dat_long_merlin <- copy(dat_long)
+dat_long_merlin[, ':=' (
+  endpoint7_bis = endpoint7 * c(TRUE, rep(NA, .N - 1)),
+  gvhd_ind = as.numeric(endpoint7_s == "gvhd") * c(TRUE, rep(NA, .N - 1)),
+  ATG_bis = as.numeric(ATG) - 1L,
+  hirisk_bis = as.numeric(hirisk) - 1L,
+  CMV_bis = as.numeric(CMV_PD)
+), by = IDAA]
+#dat_long_merlin[, , by = IDAA]
+#dat_long_merlin[, gvhd_ind := as.numeric(endpoint7_s == "gvhd")]
+#heart.valve
+
+preDLI_cox |>  coef()
+
+df_merlin <- data.frame(dat_long_merlin)
+merlin(
+  model = Surv(endpoint7_bis, gvhd_ind) ~ ATG_bis + hirisk_bis,
+  family = "weibull",
+  data = df_merlin
+)
+
+# Try joint
+sub_long <- merlin(
+  model = CD4_abs_log ~ CMV_bis + intSCT2_7 + M1[IDAA] + intSCT2_7:M2[IDAA],
+  covariance = "unstructured",
+  timevar = "intSCT2_7",
+  level = "IDAA",
+  data = df_merlin
+)
+summary(sub_long)
+
+
+jm_merlin <- merlin(
+  model = list(
+    Surv(endpoint7_bis, gvhd_ind) ~ ATG_bis + hirisk_bis + EV[log.grad],
+    CD4_abs_log ~ CMV_bis + intSCT2_7 +
+  ),
+  timevar = c("endpoint7_bis", "intSCT2_7"),
+  family = c("weibull", "gaussian"),
+  data = df_merlin
+)
