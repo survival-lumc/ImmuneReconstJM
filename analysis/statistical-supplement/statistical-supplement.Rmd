@@ -3,6 +3,7 @@ title: "\\helveticaitalic{Supplementary Material}"
 author: "Eva Koster et al."
 output: 
   pdf_document:
+    keep_tex: true
     number_sections: true
     highlight: default
 documentclass: frontiers-suppmat
@@ -10,7 +11,7 @@ classoption: utf8
 bibliography: immune-reconst.bib
 biblio-style: Frontiers-Vancouver
 header-includes: 
-  - \usepackage{url,hyperref,lineno,microtype}
+  - \usepackage{url,hyperref,lineno,microtype,float}
   - \usepackage[onehalfspacing]{setspace}
   - \onecolumn
   - \firstpage{1}
@@ -52,27 +53,30 @@ The present supplementary material is a `Statistical Supplement' to the main art
 
 # Research questions and data overview
 
-<!-- Do just for CD4? Also use subsections -->
-
 The two primary research questions addressed in the main article are
 
-1. What is the effect of early low dose donor lymphocyte infusion (DLI) on the cell count kinetics within the T-cell compartment during the first 6 months after allogeneic stem cell transplantation (alloSCT)?
+1. What is the effect of an early low dose donor lymphocyte infusion (DLI) on the cell count kinetics within the T-cell compartment during the first 6 months after allogeneic stem cell transplantation (alloSCT)?
 
 2. Are the T-cell kinetics from time of early low dose DLI associated with the risk of Graft-versus-Host-Disease (GvHD)?
 
 To answer both questions, the data at hand are comprised of
 
-- Baseline patient characteristics
-- T-cell absolute counts measured routinely at discrete timepoints starting from time of alloSCT <!-- Add swimmer plot here -->
-- Time of standard prophylactic DLI, and time of early low dose DLI (if given)
-- Time to various clinical events occuring during follow-up, such as GvHD or relapse of the underlying disease
+- Baseline patient characteristics.
+- T-cell absolute counts measured routinely at discrete timepoints starting from time of alloSCT.
+- Time of standard prophylactic DLI, and time of early low dose DLI (if given).
+- Time to various clinical events occuring during follow-up, such as GvHD or relapse of the underlying disease.
 
-<!-- Do we want raw data overview here, maybe the swimmer plot -->
+Note that the data components outlined above are inextricably interlinked. For example, a patient dying or dropping out of a study clearly precludes any further T-cell measurements from being collected. In other words, the T-cell counts that would have been measured in the absence of death or drop-out are *missing*. The suspected reason(s) behind this missingness is a key consideration behind in the choice of analysis aimed at answering the research questions: the occurrence of death could be related to observed (e.g. baseline covariates, measured T-cell counts) or unobserved (e.g. latent characteristics of the T-cell counts, such as speed of increase/decrease at a point in time) information [@rouanetInterpretationMixedModels2019].
 
-```{r test-swimmer, eval=FALSE}
+While death and drop-out are well-known drivers of cohort attrition, longitudinal measurements may also be `artificially terminated' at the occurrence of some intermediate event after which the patient remains in follow-up. This is justified when for example in the case of GVHD: no use of using measurements after to predict event in the past. It can also be justified when an event is expected to modify the trajectories?
+
+```{r test-swimmer,fig.cap="Swimmer plot (to do: label DLI)", fig.pos="htbp", fig.dim=c(6, 8)}
+# Only works with out.width for now; place at end / beginning sections
+# See also https://stackoverflow.com/questions/42486617/knitr-ignoring-fig-pos
+# https://github.com/rstudio/rmarkdown/issues/1345
 dat_long <- NMA_preDLI_datasets$long
 dat_wide <- NMA_preDLI_datasets$wide
-dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")]
+#dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")]
 
 # Prep endpoints 
 dat_evs <- melt.data.table(
@@ -82,15 +86,15 @@ dat_evs <- melt.data.table(
   variable.name = "event_id",
   value.name = "intSCT2_7"
 )
-dat_evs[intSCT2_7 > 6]
+#dat_evs[intSCT2_7 > 6]
 
 # Actually better to do this with raw data
 
-# See https://ggplot2-book.org/facet.html
 dat_long |> 
   ggplot(aes(x = intSCT2_7, y = reorder(IDAA, endpoint7))) +
   geom_line(aes(group = IDAA), linetype = "dotted", alpha = 0.5) +
-  geom_point() +
+  geom_point(
+  ) +
   facet_grid(
     endpoint7_s ~ ., 
     #labeller = labeller(endpoint5_s = event_labs),
@@ -106,9 +110,9 @@ dat_long |>
   ) 
 ```
 
-Explanation here of `dropout', the kind of cohort, issue with mixed models..
+# Effect of early low dose DLI on cell count kinetics
 
-## Question 1: effect of early low dose DLI on cell count kinetics
+## Simple approaches
 
 <Naive approaches, descriptives, dividing based on endpoint
 Linear models, mixed models, Rouanet paper, defining a population
@@ -134,21 +138,11 @@ For longitudinal we assume $y_i(t) = m_i(t) + \epsilon_i(t)$, where
 
 
 \begin{align*}
-  m_i(t) &= \beta_0 + (\beta_1 + b_{i1})B_n(t,\lambda_1) + (\beta_2 + b_{i2})B_n(t,\lambda_2) + (\beta_3 + b_{i3})B_n(t,\lambda_3) + \\
-  & \beta_4 \{B_n(t,\lambda_1) \times \text{ITT}_i \} + \beta_5 \{B_n(t,\lambda_2) \times \text{ITT}_i \} + \beta_6 \{B_n(t,\lambda_3) \times \text{ITT}_i \} + \\
-  & \beta_7 \{B_n(t,\lambda_1) \times \text{UD}_i \} + \beta_8 \{B_n(t,\lambda_2) \times \text{UD}_i \} + \beta_9 \{B_n(t,\lambda_3) \times \text{UD}_i \} + \\
-  & \beta_{10} \{B_n(t,\lambda_1) \times \text{ITT}_i \times \text{UD}_i \} + \beta_{11} \{B_n(t,\lambda_2) \times \text{ITT}_i \times \text{UD}_i \} \\
-  & \beta_{12} \{B_n(t,\lambda_3) \times \text{ITT}_i \times \text{UD}_i \} + \\
-  & \beta_{13}\text{CMV}_i + \beta_{14}\text{ITT}_i + \beta_{15}\text{UD}_i + \beta_{16} \{\text{ITT}_i \times \text{UD}_i\}
-\end{align*}
-
-Attempt at more concise:
-
-\begin{align*}
   m_i(t) &= \beta_0 + \sum_{q=1}^3(\beta_q + b_{iq})B_n(t,\lambda_q)  + \sum_{q=1}^3 \beta_{q + 3}\{B_n(t,\lambda_q) \times \text{ITT}_i\} + \sum_{q=1}^3 \beta_{q + 6}\{B_n(t,\lambda_q) \times \text{UD}_i\} + \\
   & \sum_{q=1}^3 \beta_{q + 9}\{B_n(t,\lambda_q) \times \text{ITT}_i \times \text{UD}_i\} + \beta_{13}\text{CMV}_i + \beta_{14}\text{ITT}_i + \beta_{15}\text{UD}_i + \beta_{16} \{\text{ITT}_i \times \text{UD}_i\}
 \end{align*}
 
+# Association between T-cell kinetics and GVHD after early low dose DLI
 
 ## Post-DLI model
 
@@ -167,6 +161,7 @@ And longitudinal
 
 ## Subsection
 
+...
 
 ## Subsubting
 
@@ -190,14 +185,16 @@ jointModel(
 )
 ```
 
+# General considerations
+
 ## Software choices
 
-Reference to Hickey review?
+JM, JMbayes, JMbayes2, joineR, joineRML.. hickeyComparisonJointModels2018
 
-## To-do
+## Optimisation in JM
 
-- Residual plots
-- Notation for mixed and survival submodels, pre and post-DLI
-- tbd
+## Baseline hazards
+
+Number of knots, lalala
 
 # References
