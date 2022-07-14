@@ -606,51 +606,482 @@ cbind(
 
 
 
-# Try with merline?
-library(merlin)
-library(survival)
-
-#structure for own data?
-
-
-dat_long_merlin <- copy(dat_long)
-dat_long_merlin[, ':=' (
-  endpoint7_bis = endpoint7 * c(TRUE, rep(NA, .N - 1)),
-  gvhd_ind = as.numeric(endpoint7_s == "gvhd") * c(TRUE, rep(NA, .N - 1)),
-  ATG_bis = as.numeric(ATG) - 1L,
-  hirisk_bis = as.numeric(hirisk) - 1L,
-  CMV_bis = as.numeric(CMV_PD)
-), by = IDAA]
-#dat_long_merlin[, , by = IDAA]
-#dat_long_merlin[, gvhd_ind := as.numeric(endpoint7_s == "gvhd")]
-#heart.valve
-
-preDLI_cox |>  coef()
-
-df_merlin <- data.frame(dat_long_merlin)
-merlin(
-  model = Surv(endpoint7_bis, gvhd_ind) ~ ATG_bis + hirisk_bis,
-  family = "weibull",
-  data = df_merlin
-)
-
-# Try joint
-sub_long <- merlin(
-  model = CD4_abs_log ~ CMV_bis + intSCT2_7 + M1[IDAA] + intSCT2_7:M2[IDAA],
-  covariance = "unstructured",
-  timevar = "intSCT2_7",
-  level = "IDAA",
-  data = df_merlin
-)
-summary(sub_long)
-
-
-jm_merlin <- merlin(
-  model = list(
-    Surv(endpoint7_bis, gvhd_ind) ~ ATG_bis + hirisk_bis + EV[log.grad],
-    CD4_abs_log ~ CMV_bis + intSCT2_7 +
+# Multivariate stan??
+gvhd_stan <- stan_jm(
+  formulaLong = list(
+    CD4_abs_log ~ ns(intSCT2_7, 3) * ATG + CMV_PD
+    + (0 + ns(intSCT2_7, 3) | IDAA),
+    CD8_abs_log ~ ns(intSCT2_7, 3) * ATG + CMV_PD
+    + (0 + ns(intSCT2_7, 3) | IDAA)
   ),
-  timevar = c("endpoint7_bis", "intSCT2_7"),
-  family = c("weibull", "gaussian"),
-  data = df_merlin
+  dataLong = dat_long,
+  formulaEvent = survival::Surv(endpoint7, endpoint7_s == "gvhd") ~ ATG + hirisk,
+  assoc = list("etavalue", "etavalue"),
+  dataEvent = dat_wide,
+  time_var = "intSCT2_7",
+  chains = 3,
+  refresh = 20,
+  seed = 12345,
+  cores = 3
 )
+
+gvhd_stan <- stan_jm(
+  formulaLong = list(
+    CD4_abs_log ~ ns(intSCT2_7, 3) * ATG + CMV_PD
+    + (0 + ns(intSCT2_7, 3) | IDAA)
+  ),
+  dataLong = dat_long,
+  formulaEvent = survival::Surv(endpoint7, endpoint7_s == "gvhd") ~ ATG + hirisk,
+  assoc = c("etavalue", "etaslope"), # "etavalue_data(~ hirisk)"
+  dataEvent = dat_wide,
+  time_var = "intSCT2_7",
+  chains = 3,
+  refresh = 20,
+  seed = 12345,
+  cores = 3
+)
+
+# Interaction with itt?
+
+
+
+# Ultimate jmbayes2 model -------------------------------------------------
+
+
+
+# Survival set-up
+dat_long <- NMA_preDLI_datasets$long
+dat_wide <- NMA_preDLI_datasets$wide
+
+dat_wide_idCR <- crisk_setup(
+  dat_wide,
+  statusVar = "endpoint7_s",
+  censLevel = "cens",
+  nameStrata = "CR"
+)
+
+# For transition-specific covars:
+dat_wide_idCR$ATG.1 <- with(dat_wide_idCR, (as.numeric(ATG) - 1L) * (CR == "gvhd"))
+dat_wide_idCR$hirisk.1 <- with(dat_wide_idCR, (as.numeric(hirisk) - 1L) * (CR == "gvhd"))
+dat_wide_idCR$ATG.2 <- with(dat_wide_idCR, (as.numeric(ATG) - 1L) * (CR == "relapse"))
+dat_wide_idCR$hirisk.2 <- with(dat_wide_idCR, (as.numeric(hirisk) - 1L) * (CR == "relapse"))
+dat_wide_idCR$ATG.3 <- with(dat_wide_idCR, (as.numeric(ATG) - 1L) * (CR == "other_nrf"))
+
+CoxFit <-  coxph(
+  Surv(endpoint7, status2) ~
+    ATG.1 + hirisk.1 +
+    ATG.2 + hirisk.2 +
+    ATG.3 + strata(CR),
+  data = dat_wide_idCR,
+  x = TRUE
+)
+
+lmeFit_CD4 <- update(
+  preDLI_long_corr_CD4,
+  fixed. =  . ~ ns(intSCT2_7, 3) * ATG,
+  random = ~ ns(intSCT2_7, 3) | IDAA
+)
+
+lmeFit_CD8 <- update(
+  tar_read(preDLI_long_corr_CD8),
+  fixed. =  . ~ ns(intSCT2_7, 3) * ATG,
+  random = ~ ns(intSCT2_7, 3) | IDAA
+)
+
+# 8 minutes christtt
+gvhd_JMbayes2_randint_CR <- jm(
+  Surv_object = CoxFit,
+  Mixed_objects = list(lmeFit_CD4, lmeFit_CD8),
+  time_var = "intSCT2_7",
+  functional_forms = list(
+    "CD4_abs_log" = ~ (value(CD4_abs_log) + slope(CD4_abs_log)):CR,
+    "CD8_abs_log" = ~ (value(CD8_abs_log) + slope(CD8_abs_log)):CR
+  )#,
+  #n_burnin = 5,#10000, # needs 10000 more..
+  #n_iter = 10#20000
+)
+
+gvhd_JMbayes2_randint_CR
+
+lmeFit_CD4 <- update(
+  preDLI_long_corr_CD4,
+  fixed. =  . ~ ns(intSCT2_7, 3) * ATG * hirisk,
+  random = ~ ns(intSCT2_7, 3) | IDAA
+)
+
+lmeFit_CD8 <- update(
+  tar_read(preDLI_long_corr_CD8),
+  fixed. =  . ~ ns(intSCT2_7, 3) * ATG * hirisk,
+  random = ~ ns(intSCT2_7, 3) | IDAA
+)
+
+gvhd_JMbayes2_randint_CR <- jm(
+  Surv_object = CoxFit,
+  Mixed_objects = lmeFit_CD4,#list(lmeFit_CD4, lmeFit_CD8),
+  time_var = "intSCT2_7",
+  functional_forms = list("CD4_abs_log" = ~ value(CD4_abs_log) + value(CD4_abs_log):CR)
+#  )#,
+  #n_burnin = 5,#10000, # needs 10000 more..
+  #n_iter = 10#20000
+)
+
+
+# Relapse  ----------------------------------------------------------------
+
+
+# Try model just relapse
+coxfit_rel <- coxph(
+  Surv(endpoint7, endpoint7_s == "relapse") ~ ATG + hirisk,
+  data = dat_wide,
+  x = TRUE
+)
+
+lmeFit_CD4 <- update(
+  preDLI_long_corr_CD4,
+  fixed. =  . ~ ns(intSCT2_7, 3) * ATG * hirisk + CMV_PD,
+  random = ~ ns(intSCT2_7, 3) | IDAA
+)
+
+# Mow the rest..
+
+rel_JMbayes2_randint <- jm(
+  Surv_object = coxfit_rel,
+  Mixed_objects = lmeFit_CD4,#list(lmeFit_CD4, lmeFit_CD8),
+  time_var = "intSCT2_7",
+  functional_forms = list("CD4_abs_log" = ~ value(CD4_abs_log)),
+  n_iter = 4000L,
+  n_burnin = 1000L
+)
+
+rel_JMbayes2_randint
+ggtraceplot(rel_JMbayes2_randint, c("betas"), grid = TRUE, gridrows = 6, gridcols = 3)
+ggtraceplot(rel_JMbayes2_randint, c("gammas"), grid = TRUE, gridrows = 2)
+ggtraceplot(rel_JMbayes2_randint, c("alphas"))
+
+rel_JM <- jointModel(
+  lmeObject = lmeFit_CD4,
+  survObject = coxfit_rel,
+  method = "spline-PH-aGH",
+  timeVar = "intSCT2_7"#,
+  #numeriDeriv = "cd",
+  #lng.in.kn = 6
+)
+rel_JM$convergence
+summary(rel_JM)
+coefficients(rel_JM, "Event")
+rel_JMbayes2_randint |>  coef()
+preDLI_JM_value_corr_CD4$coefficients$alpha
+
+
+# Try stan
+rel_stan <- stan_jm(
+  formulaLong = CD4_abs_log ~ ns(intSCT2_7, 3) * ATG * hirisk + CMV_PD
+  + (0 + ns(intSCT2_7, 3) | IDAA),
+  dataLong = dat_long,
+  formulaEvent = survival::Surv(endpoint7, endpoint7_s == "relapse") ~ ATG + hirisk,
+  dataEvent = dat_wide,
+  time_var = "intSCT2_7",
+  chains = 3,
+  refresh = 50,
+  seed = 6842984,
+  cores = 3
+)
+
+rel_stan
+summary(rel_stan)
+
+
+rel_stan_randint <- stan_jm(
+  formulaLong = CD4_abs_log ~ ns(intSCT2_7, 3) * ATG * hirisk + CMV_PD
+  + (ns(intSCT2_7, 3) | IDAA),
+  dataLong = dat_long,
+  formulaEvent = survival::Surv(endpoint7, endpoint7_s == "relapse") ~ ATG + hirisk,
+  dataEvent = dat_wide,
+  time_var = "intSCT2_7",
+  chains = 3,
+  refresh = 50,
+  seed = 6842984,
+  cores = 3
+)
+
+rel_stan_randint
+rel_stan
+
+lmeFit_CD4 <- update(
+  preDLI_long_corr_CD4,
+  fixed. =  . ~ ns(intSCT2_7, 3) * ATG * hirisk + CMV_PD,
+  random = ~ ns(intSCT2_7, 3) | IDAA
+)
+
+rel_JMbayes2_randint <- jm(
+  Surv_object = coxfit_rel,
+  Mixed_objects = lmeFit_CD4,#list(lmeFit_CD4, lmeFit_CD8),
+  time_var = "intSCT2_7",
+  #Bsplines_degree = 3,
+ #knots = rel_JM$control$knots$`1`
+  #n_iter = 4000L,
+  #n_burnin = 1000L
+)
+
+# https://github.com/drizopoulos/JMbayes2/issues/24
+# Note after dev some issues!
+rel_JMbayes2_randint <- jm(
+  Surv_object = coxfit_rel,
+  Mixed_objects = lmeFit_CD4,
+  time_var = "intSCT2_7",
+  #knots = list(c(0.0000, 1.2002, 2.4004, 3.6006, 4.8008, 6.0010)),
+  #Bsplines_degree = 3L,
+  #base_hazard_segments = 6L
+  Bsplines_degree = 3L,
+  base_hazard_segments = 6L
+)
+
+rel_JMbayes2_randint$control$knots
+rel_JMbayes2_randint
+
+
+
+# Knots outside range??
+rel_JMbayes2_randint <- jm(
+  Surv_object = coxfit_rel,
+  Mixed_objects = lmeFit_CD4,
+  time_var = "intSCT2_7",
+  Bsplines_degree = 3L,
+  knots = list(
+    seq(0, max(dat_wide$endpoint7), length.out = 6 + 2)
+  )
+  #Bsplines_degree = 2L,
+  #base_hazard_segments = 10L
+  #Bsplines_degree = 0L,
+  #base_hazard_segments = 30L
+)
+
+rel_JMbayes2_randint$control$knots
+rel_JMbayes2_randint
+
+#rel_JMbayes2_randint$control$Bsplines_degree
+
+# Works:
+#Bsplines_degree = 0L,
+#base_hazard_segments = 5L
+
+rel_JMbayes2_randint$control$knots
+
+coef(rel_JMbayes2_randint)
+coef(rel_stan_randint)$Event
+rel_JMbayes2_randint
+
+qs <- lapply(split(dat_wide$endpoint7, rep(1, nrow(dat_wide))), range)
+lapply(qs, function (x)
+  JMbayes2:::knots(x[1L], x[2L], 3, 1)#con$base_hazard_segments,
+        #con$Bsplines_degree))
+
+
+x <- unlist(qs)
+knos <- JMbayes2:::knots(
+  x[1L], x[2L], 2 #con$base_hazard_segments,
+  1 #con$Bsplines_degree
+)
+
+?JMbayes2:::knots()
+
+
+# Repro example -----------------------------------------------------------
+
+
+pbc2.id$years |>  hist()
+max(pbc2.id$years)
+
+MixedFit <- lme(log(serBilir) ~ year, data = pbc2, random = ~ year | id)
+pbc2.id$Time <- pbc2.id$years
+pbc2.id$event <- as.numeric(pbc2.id$status != "alive")
+CoxFit <- coxph(Surv(Time, event) ~ drug + age, data = pbc2.id)
+JMFit1 <- jm(CoxFit, MixedFit, time_var = "year", Bsplines_degree = 0L,
+             base_hazard_segments = 30)
+JMFit1$control$knots
+coef(JMFit1)
+
+JMFit2 <- jm(CoxFit, MixedFit, time_var = "year")
+JMFit2$control$knots
+coef(JMFit2)
+
+JMFit3 <- jm(CoxFit, MixedFit, time_var = "year", Bsplines_degree = 3L)
+JMFit3$control$knots
+coef(JMFit3)
+
+
+
+# PBC2 edge case ----------------------------------------------------------
+
+
+# Suppose events only start after 3y
+ids_3y <- with(pbc2.id, id[which(years >= 3)])
+pbc2.id_3y <- subset(pbc2.id, id %in% ids_3y)
+pbc2.id_3y$event <- as.numeric(pbc2.id_3y$status != "alive")
+pbc2_3y <- subset(pbc2, id %in% ids_3y)
+
+# Fit submodels
+MixedFit <- lme(log(serBilir) ~ year, data = pbc2_3y, random = ~ year | id)
+CoxFit <- coxph(Surv(Time, event) ~ drug + age, data = pbc2.id_3y, x = TRUE)
+
+# Model one
+JMFit1 <- jm(CoxFit, MixedFit, time_var = "year", Bsplines_degree = 0L,
+             base_hazard_segments = 30)
+JMFit1$control$knots
+coef(JMFit1)
+
+# Model two default
+JMFit2 <- jm(CoxFit, MixedFit, time_var = "year")#, Bsplines_degree = 3L)
+JMFit2$control$knots
+coef(JMFit2)
+
+JMFit3 <- jm(CoxFit, MixedFit, time_var = "year", Bsplines_degree = 3L,
+             knots = list(
+               c(0, 3, 6, 9, 12, 15, max(pbc2.id_3y$years))
+             ))
+x <- range(pbc2.id_3y$years)
+xl <- x[1]
+xr <- x[2]
+ndx <- 6
+
+JMFit3$control$knots
+coef(JMFit3)
+
+JM_piece <- JM::jointModel(
+  lmeObject = MixedFit,
+  survObject = CoxFit,
+  timeVar = "year",
+  method = "piecewise-PH-aGH",
+  lng.in.kn = 8
+  #method = "spline-PH-aGH",
+  #knots = c(0, 3, 6, 9, 12, max(pbc2.id_3y$years)),
+  #equal.strata.knots = FALSE,
+  #ord = 4
+)
+plot(JM_piece)
+
+JM_piece$control$knots
+coefficients(JM_piece, "Event")
+
+jmfit2 <- jm(CoxFit, MixedFit, time_var = "year", Bsplines_degree = 0L,
+   knots = list(
+     c(0, JM_piece$control$knots, max(pbc2.id_3y$years))
+   ))
+
+jmfit2$control$knots
+coef(jmfit2)
+
+plot(basehaz(CoxFit))
+
+#
+JM_spline <- JM::jointModel(
+  lmeObject = MixedFit,
+  survObject = CoxFit,
+  timeVar = "year",
+  method = "spline-PH-aGH",
+  lng.in.kn = 5,
+  ord = 4
+)
+coef(JM_piece, "Event")
+coef(JM_spline, "Event")
+
+jmb2_spline <- jm(
+  Surv_object = CoxFit,
+  Mixed_objects = MixedFit,
+  time_var = "year",
+  Bsplines_degree = 3L,
+  #knots = list()
+  #knots = list(JM_spline$control$knots$`1`)
+  knots = list(
+    sort(c(rep(c(0, max(pbc2.id_3y$years)), times = 4L), 5, 6, 7, 9, 11))
+  )
+)
+coef(jmb2_spline)
+
+# Now with spline
+
+
+
+# The ultimate jmbayes2 with splines --------------------------------------
+
+
+
+
+library(targets)
+library(JM)
+library(JMbayes2)
+
+# Load objects
+tar_load(
+  c(
+    NMA_preDLI_datasets,
+    preDLI_JM_value_corr_CD4,
+    preDLI_long_corr_CD4,
+    preDLI_cox
+  )
+)
+
+# Survival set-up
+dat_long <- NMA_preDLI_datasets$long
+dat_wide <- NMA_preDLI_datasets$wide
+
+dat_wide_idCR <- crisk_setup(
+  dat_wide,
+  statusVar = "endpoint7_s",
+  censLevel = "cens",
+  nameStrata = "CR"
+)
+
+# For transition-specific covars:
+dat_wide_idCR$ATG.1 <- with(dat_wide_idCR, (as.numeric(ATG) - 1L) * (CR == "gvhd"))
+dat_wide_idCR$hirisk.1 <- with(dat_wide_idCR, (as.numeric(hirisk) - 1L) * (CR == "gvhd"))
+dat_wide_idCR$ATG.2 <- with(dat_wide_idCR, (as.numeric(ATG) - 1L) * (CR == "relapse"))
+dat_wide_idCR$hirisk.2 <- with(dat_wide_idCR, (as.numeric(hirisk) - 1L) * (CR == "relapse"))
+dat_wide_idCR$ATG.3 <- with(dat_wide_idCR, (as.numeric(ATG) - 1L) * (CR == "other_nrf"))
+
+CoxFit <-  coxph(
+  Surv(endpoint7, status2) ~
+    ATG.1 + hirisk.1 +
+    ATG.2 + hirisk.2 +
+    ATG.3 + strata(CR),
+  data = dat_wide_idCR,
+  x = TRUE
+)
+lmeFit <- update(preDLI_long_corr_CD4, random = ~ ns(intSCT2_7, 3) | IDAA)
+
+jmb2_CR_value <- jm(
+  Surv_object = CoxFit,
+  Mixed_objects = lmeFit, #list(lmeFit_CD4, lmeFit_CD8),
+  time_var = "intSCT2_7",
+  functional_forms = list(
+    #"CD4_abs_log" = ~ value(CD4_abs_log) * CR - 1
+    "CD4_abs_log" = ~ value(CD4_abs_log):CR - 1
+    #"CD4_abs_log" = ~ value(CD4_abs_log) + value(CD4_abs_log):CR
+    #"CD8_abs_log" = ~ (value(CD8_abs_log) + slope(CD8_abs_log)):CR
+  ),
+  Bsplines_degree = 3L,
+  knots = preDLI_JM_value_corr_CD4$control$knots#,
+  #n_burnin = 10000, # needs 10000 more..
+  #n_iter = 20000
+)
+ggtraceplot(jmb2_CR_value, "alphas")
+jmb2_CR_value$running_time
+jmb2_CR_value
+preDLI_JM_value_corr_CD4$coefficients$alpha
+
+
+jmb2_CR_value <- jm(
+  Surv_object = CoxFit,
+  Mixed_objects = lmeFit, #list(lmeFit_CD4, lmeFit_CD8),
+  time_var = "intSCT2_7",
+  functional_forms = list(
+    "CD4_abs_log" = ~ value(CD4_abs_log) * CR - 1
+    #"CD4_abs_log" = ~ value(CD4_abs_log) + value(CD4_abs_log):CR
+    #"CD8_abs_log" = ~ (value(CD8_abs_log) + slope(CD8_abs_log)):CR
+  ),
+  Bsplines_degree = 0L,
+  base_hazard_segments = 30
+  #n_burnin = 10000, # needs 10000 more..
+  #n_iter = 20000
+)
+jmb2_CR_value
