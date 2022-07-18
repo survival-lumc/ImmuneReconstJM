@@ -1082,13 +1082,22 @@ CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
   ) +
   #coord_fixed()
   #coord_cartesian(ylim = c(log(0.5), log(500))) +
+  geom_rect(
+    xmin = zoom_areas$CD4$x[1],
+    xmax = zoom_areas$CD4$x[2],
+    ymin = zoom_areas$CD4$y[1],
+    ymax = zoom_areas$CD4$y[2],
+    col = "black",
+    linetype = "dashed",
+    fill = NA
+  ) +
   facet_zoom(
     xlim = zoom_areas$CD4$x,
     ylim = zoom_areas$CD4$y,
     show.area = FALSE,#shrink = T,
     zoom.size = 1L
   ) +
-  theme_light()
+  theme_light() + theme(axis.title.x = element_blank())
 
 CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
@@ -1105,6 +1114,15 @@ CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
     linetype = "ITT",
     col = "Donor type"
   ) +
+  geom_rect(
+    xmin = zoom_areas$CD8$x[1],
+    xmax = zoom_areas$CD8$x[2],
+    ymin = zoom_areas$CD8$y[1],
+    ymax = zoom_areas$CD8$y[2],
+    col = "black",
+    linetype = "dashed",
+    fill = NA
+  ) +
   facet_zoom(
     xlim = zoom_areas$CD8$x,
     ylim = zoom_areas$CD8$y,
@@ -1115,20 +1133,14 @@ CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
     breaks = log(c(5, 25, 100, 500, 1500)),
     labels = c(5, 25, 100, 500, 1500)
   ) +
-  theme_light()
+  theme_light() +
+  theme(axis.title.x = element_blank())
 
 #CD8_sub
 
 # https://stackoverflow.com/questions/45221783/ggforce-facet-zoom-labels-only-on-zoomed-example/49927431#49927431
-df_cd3 <- copy(data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"])
-df_cd3 <- df_cd3[
-  (intSCT2_7 <= zoom_areas$CD3$x[2] & intSCT2_7 >= zoom_areas$CD3$x[1]) &
-    (upp <= zoom_areas$CD3$y[2] & low >= zoom_areas$CD3$y[1])
-]
-df_cd3[, zoom := TRUE]
 
-#CD3_sub <-
-data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
+CD3_sub <- data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
   geom_ribbon(
     aes(ymin = low, ymax = upp),
@@ -1143,30 +1155,59 @@ data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
     linetype = "ITT",
     col = "Donor type"
   ) +
+  geom_rect(
+    xmin = zoom_areas$CD3$x[1],
+    xmax = zoom_areas$CD3$x[2],
+    ymin = zoom_areas$CD3$y[1],
+    ymax = zoom_areas$CD3$y[2],
+    col = "black",
+    linetype = "dashed",
+    fill = NA
+  ) +
   facet_zoom(
-    x = intSCT2_7 <= zoom_areas$CD3$x[2] & intSCT2_7 >= zoom_areas$CD3$x[1],
-    #y = y <= zoom_areas$CD3$x[2] & y >= zoom_areas$CD3$x[1],
+    xlim = zoom_areas$CD3$x,
+    ylim = zoom_areas$CD3$y,
     show.area = FALSE,
-    zoom.size = 1L,
-    zoom.data = data.frame(df_cd3)
+    zoom.size = 1L
   ) +
   scale_y_continuous(
     breaks = log(c(5, 25, 100, 500, 1500)),
     labels = c(5, 25, 100, 500, 1500)
   ) +
-  theme_light()
+  theme_light() +
+  theme(axis.title.x = element_blank())
 
-geom_rect(
-  xmin = zoom_areas$CD3$x[1],
-  xmax = zoom_areas$CD3$x[2],
-  ymin = zoom_areas$CD3$y[1],
-  ymax = zoom_areas$CD3$y[2],
-  col = "black",
-  linetype = "dashed",
-  fill = NA
-) +
+remove_zoom_rectangle <- function(p) {
+  pb <- ggplot_build(p)
+  pb$data[[3]][pb$data[[3]]$PANEL == 4, "colour"] <- NA
+  pg <- ggplot_gtable(pb)
+  ggplotify::as.ggplot(pg)
+}
 
-#CD3_sub
+library(cowplot)
+legend_b <- get_legend(CD4_sub + theme(legend.position = "top"))
+
+prow <- plot_grid(
+  remove_zoom_rectangle(CD4_sub + theme(legend.position="none")),
+  remove_zoom_rectangle(CD8_sub + theme(legend.position="none")),
+  remove_zoom_rectangle(CD3_sub + theme(legend.position="none")),
+  #align = 'vh',
+  #labels = c("A", "B", "C"),
+  #hjust = -1,
+  nrow = 3
+)
+prow_leg <- plot_grid(
+  legend_b, prow, ncol = 1, rel_heights = c(.1, 1)
+)
+
+final <- ggpubr::annotate_figure(
+  prow_leg,
+  bottom = ggpubr::text_grob("Time since alloSCT (months)",
+                             hjust = 0.5)#, size = 10)
+)
+
+final
+class(final)
 
 #gridExtra::grid.arrange(
 #  CD4_sub, CD3_sub, CD8_sub
@@ -1179,16 +1220,17 @@ geom_rect(
 #)
 
 p_new <- ggpubr::ggarrange(
-  CD4_sub + theme(axis.title.x = element_blank()),
-  CD8_sub + theme(axis.title.x = element_blank()),
-  CD3_sub + theme(axis.title.x = element_blank()),
+  remove_zoom_rectangle(CD4_sub),
+  remove_zoom_rectangle(CD8_sub),
+  remove_zoom_rectangle(CD3_sub),
   nrow = 3, ncol = 1,
   common.legend = TRUE
 )
 
-library(grid)
-ggpubr::annotate_figure(
+p_final <- ggpubr::annotate_figure(
   p_new,
   bottom = ggpubr::text_grob("Time since alloSCT (months)",
             hjust = 0.5)#, size = 10)
 )
+
+p_final
