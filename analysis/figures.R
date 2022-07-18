@@ -365,7 +365,7 @@ data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
     breaks = log(c(5, 25, 100, 500, 1500)),
     labels = c(5, 25, 100, 500, 1500)
   ) +
-  coord_cartesian(xlim = c(2.5, 6), ylim = c(log(10), log(250))) +
+  coord_cartesian(xlim = c(2, 6), ylim = c(log(10), log(250))) +
   scale_color_manual(
     labels = c("RD", "UD+ATG"),
     values = c("brown", "darkblue")
@@ -424,6 +424,130 @@ data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
 
 # Or switch around? Show zoomed one in main, show full follow-up in sub plot?
 
+
+# Try with ggforce
+library(ggforce)
+theme_set(theme_minimal())
+
+data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 0.75,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  facet_zoom(
+    xlim = c(2, 6),
+    ylim = c(log(10), log(200)),
+    show.area = FALSE,
+    zoom.size = 1L
+  ) +
+  theme_light() #+
+
+#geom_text path?
+
+
+# Hacky one ---------------------------------------------------------------
+
+p_CD4_zoomed <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 1,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(xlim = c(2.5, 6), ylim = c(log(10), log(250))) +
+  scale_color_manual(
+    labels = c("RD", "UD+ATG"),
+    values = c("brown", "darkblue")
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes (high risk)"),
+    values = c("solid", "dotdash")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+
+p_CD4_zoomed
+
+
+p_CD4_full <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "gray",
+    alpha = 1,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500)), clip = "off") +
+  scale_color_manual(
+    labels = c("RD", "UD+ATG"),
+    values = c("brown", "darkblue")
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes (high risk)"),
+    values = c("solid", "dotdash")
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom",
+        plot.margin = unit(c(1, 15, 1, 1), "lines")) +
+  geom_rect(aes(xmin = 2.5, xmax = 6,
+                ymin = log(10), ymax = log(250)), col = "black",
+            linetype = "dashed", fill = NA)
+
+library(patchwork)
+
+
+base <- p_CD4_full | p_CD4_zoomed
+
+segments <- ggplot() +
+  geom_line(
+    data = cbind.data.frame(x = c(0, 1), y = c(0, 1)),
+    aes(x = x, y = x)
+  ) +
+  #geom_abline(intercept = 0, slope = 1) +
+  theme_void()
+
+#https://community.rstudio.com/t/how-can-i-connect-geom-vline-lines-across-facets-for-single-subject-design-plots/133160/2
+base + inset_element(
+  segments, left = -0.75, bottom = 0.8, right = 0, top = 1) +
+  inset_element(
+    segments, left = -0.75, bottom = 0.5, right = 0, top = 0)
 
 # Summary of post DLI models ----------------------------------------------
 
@@ -922,3 +1046,149 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
         axis.title = element_text(size=12), strip.text = element_text(size=11),
         panel.grid.major.y=element_blank(),plot.margin=margin(l=0))
 ggsave("analysis/figures/postDLI_forest.png",dpi=300,height=6,width=11)
+
+
+
+# Facet zoom customed -----------------------------------------------------
+
+zoom_areas <- list(
+  "CD4" = list("x" = c(2, 6), y = c(log(10), log(200))),
+  "CD8" = list("x" = c(2, 6), y = c(log(25), log(500))),
+  "CD3" = list("x" = c(2, 6), y = c(log(100), log(700)))
+)
+
+library(ggforce)
+
+CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "lightgray",
+    alpha = 0.75,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("CD4 cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+ # coord_cartesian(ylim = c(log()))
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)#,
+    #limits = c(log(0.5), log(500))
+  ) +
+  #coord_fixed()
+  #coord_cartesian(ylim = c(log(0.5), log(500))) +
+  facet_zoom(
+    xlim = zoom_areas$CD4$x,
+    ylim = zoom_areas$CD4$y,
+    show.area = FALSE,#shrink = T,
+    zoom.size = 1L
+  ) +
+  theme_light()
+
+CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "lightgray",
+    alpha = 0.75,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("CD8 cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  facet_zoom(
+    xlim = zoom_areas$CD8$x,
+    ylim = zoom_areas$CD8$y,
+    show.area = FALSE,
+    zoom.size = 1L
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_light()
+
+#CD8_sub
+
+# https://stackoverflow.com/questions/45221783/ggforce-facet-zoom-labels-only-on-zoomed-example/49927431#49927431
+df_cd3 <- copy(data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"])
+df_cd3 <- df_cd3[
+  (intSCT2_7 <= zoom_areas$CD3$x[2] & intSCT2_7 >= zoom_areas$CD3$x[1]) &
+    (upp <= zoom_areas$CD3$y[2] & low >= zoom_areas$CD3$y[1])
+]
+df_cd3[, zoom := TRUE]
+
+#CD3_sub <-
+data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = "lightgray",
+    alpha = 0.75,
+    col = NA
+  ) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("CD3 cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "Donor type"
+  ) +
+  facet_zoom(
+    x = intSCT2_7 <= zoom_areas$CD3$x[2] & intSCT2_7 >= zoom_areas$CD3$x[1],
+    #y = y <= zoom_areas$CD3$x[2] & y >= zoom_areas$CD3$x[1],
+    show.area = FALSE,
+    zoom.size = 1L,
+    zoom.data = data.frame(df_cd3)
+  ) +
+  scale_y_continuous(
+    breaks = log(c(5, 25, 100, 500, 1500)),
+    labels = c(5, 25, 100, 500, 1500)
+  ) +
+  theme_light()
+
+geom_rect(
+  xmin = zoom_areas$CD3$x[1],
+  xmax = zoom_areas$CD3$x[2],
+  ymin = zoom_areas$CD3$y[1],
+  ymax = zoom_areas$CD3$y[2],
+  col = "black",
+  linetype = "dashed",
+  fill = NA
+) +
+
+#CD3_sub
+
+#gridExtra::grid.arrange(
+#  CD4_sub, CD3_sub, CD8_sub
+#)
+
+
+#
+#cowplot::plot_grid(
+#  CD4_sub, CD8_sub, CD3_sub, nrow = 3, ncol = 1
+#)
+
+p_new <- ggpubr::ggarrange(
+  CD4_sub + theme(axis.title.x = element_blank()),
+  CD8_sub + theme(axis.title.x = element_blank()),
+  CD3_sub + theme(axis.title.x = element_blank()),
+  nrow = 3, ncol = 1,
+  common.legend = TRUE
+)
+
+library(grid)
+ggpubr::annotate_figure(
+  p_new,
+  bottom = ggpubr::text_grob("Time since alloSCT (months)",
+            hjust = 0.5)#, size = 10)
+)
