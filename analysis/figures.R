@@ -1209,6 +1209,9 @@ final <- ggpubr::annotate_figure(
 final
 class(final)
 
+pdf(file = "marginals-test.pdf", width = 6, height = 8)
+final
+dev.off()
 #gridExtra::grid.arrange(
 #  CD4_sub, CD3_sub, CD8_sub
 #)
