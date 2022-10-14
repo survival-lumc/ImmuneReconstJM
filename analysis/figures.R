@@ -582,16 +582,17 @@ marg_preds_postDLI <- lapply(mods_postDLI_value, function(mod) {
 
 
 # Good plot with one
-rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
+rbindlist(marg_preds_postDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
   ggplot(aes(x = intDLI1, y = pred, group = ATG)) + # was intDLI1 + 3
   geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
   geom_line(aes(col = ATG), size = 1.5, alpha = 0.75) +
   # Add repel labels?
-  facet_grid(facets = cell_line ~ CMV_PD,
-             labeller = as_labeller(c("-/-"="CMV: -/-", "other P/D"="CMV: other",
-                                      "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
-                                      #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
-                                      ))) +
+  facet_grid(facets = cell_line ~ .
+             # labeller = as_labeller(c("-/-"="CMV: -/-", "other P/D"="CMV: other",
+             #                          "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
+             #                          #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
+             #                          ))
+             ) +
   labs(
     x = "Time since DLI (months)", # was alloSCT
     y = expression(paste("cell count (x10"^"6","/l)")),
@@ -599,15 +600,16 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
     col = "Donor type"
   ) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
   ) +
   coord_cartesian(xlim = c(0, 3), ylim = c(log(0.1), log(1500))) + # xlim was c(0,6)
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
+  scale_color_discrete(
+    labels = c("RD", "UD+ATG")#,
+    #values = c("brown", "darkblue")
   ) +
-  theme(legend.position = "bottom") #+
+  theme(legend.position = "bottom") +
+  theme_bw()
   #geom_vline(xintercept = 3, linetype = "dotted")
 ggsave("analysis/figures/postDLI_trajectories.png",dpi=300,width=6,height=8) # this is FIgure 4
 
@@ -860,13 +862,19 @@ ggsave("analysis/figures/forest_preDLI.png",dpi=300,width=8,height=8) # this is 
 ### tryout by Eva
 library(dplyr)
 res2.2<-res2%>%
-  mutate(endpoint=factor(ifelse(grepl("1",param),"GvHD",ifelse(grepl("2",param),"Relapse", "Other failure")),
-                         levels=c("GvHD","Relapse","Other failure")),
-         param2=factor(ifelse(grepl("ATG",param),"UD+ATG",ifelse(grepl("hirisk",param),"indication for\nearly low-dose DLI", "current count")),
-                       levels=c("UD+ATG","indication for\nearly low-dose DLI","current count")),
-         subset=factor(cell_line,levels=c("CD8","CD4","CD3")),
-         label=paste0(ifelse(HR>=1,"  ", ""), round(HR,digits=2), " (", round(low,digits=2), "-", round(upp,digits=2), ")",
-                      ifelse(HR<1, "   \n ", "\n ")))%>%
+  mutate(
+    endpoint=factor(
+      ifelse(grepl("1",param),"GvHD",ifelse(grepl("2",param),"Relapse", "Other failure")),
+      levels=c("GvHD","Relapse","Other failure")
+    ),
+    param2=factor(
+      ifelse(grepl("ATG",param),"UD+ATG\n(vs. RD)",ifelse(grepl("hirisk",param),"High risk\n(vs. Non-high risk)", "Current value (t)")),
+      levels=c("UD+ATG\n(vs. RD)","High risk\n(vs. Non-high risk)","Current value (t)")
+    ),
+    subset=factor(cell_line,levels=c("CD8","CD4","CD3")),
+    label=paste0(ifelse(HR>=1,"  ", ""), round(HR,digits=2), " (", round(low,digits=2), "-", round(upp,digits=2), ")",
+                 ifelse(HR<1, "   \n ", "\n "))
+  )%>%
   arrange(endpoint,param2,subset)%>%
   mutate(label=factor(label,levels=label))
 res2.2
@@ -898,7 +906,7 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
   geom_point(
     aes(col = subset, shape = subset),
     position = position_dodge(width = 0.8),
-    size = 2,
+    size = 3,
     na.rm = TRUE
   ) +
   guides(col = guide_legend(reverse = TRUE,override.aes = list(alpha=1)),
@@ -912,7 +920,8 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
         axis.text=element_text(color="black",size=11),
         legend.text = element_text(size=11),legend.title=element_text(size=11),
         axis.title = element_text(size=12), strip.text = element_text(size=11),
-        panel.grid.major.y=element_blank())
+        panel.grid.major.y=element_blank()) +
+  scale_color_brewer(palette = "Dark2")
 ggsave("analysis/figures/preDLI_forest.png",dpi=300,width=10,height=8)
 
 
@@ -991,13 +1000,16 @@ ggsave("analysis/figures/forest_postDLI.png",dpi=300,width=8,height=8) # this is
 
 ### tryout by Eva
 res3.2<-res3%>%
-  mutate(endpoint=factor(ifelse(grepl("1",param),"GvHD","Relapse or other failure"),
-                         levels=c("GvHD","Relapse or other failure")),
-         param2=factor(ifelse(grepl("ATG",param),"UD+ATG", "current count"),
-                       levels=c("UD+ATG", "current count")),
-         subset=factor(cell_line,levels=c("CD8","CD4","CD3")),
-         label=paste0(ifelse(HR>=1,"  ", ""), format(round(HR,digits=2)), " (", round(low,digits=2), "-", round(upp,digits=2), ")",
-                      ifelse(HR<1, "   \n \n ", "\n \n ")))%>%
+  mutate(
+    endpoint=factor(ifelse(grepl("1",param),"GvHD","Relapse or other failure"),
+                    levels=c("GvHD","Relapse or other failure")),
+    param2=factor(ifelse(grepl("ATG",param),"UD+ATG\n(vs. RD)", "Current value (t)"),
+                  levels=c("UD+ATG\n(vs. RD)", "Current value (t)")),
+    subset=factor(cell_line,levels=c("CD8","CD4","CD3")),
+    label=paste0(ifelse(HR>=1,"  ", ""), format(round(HR,digits=2)),
+                 " (", round(low,digits=2), "-", round(upp,digits=2), ")",
+                 ifelse(HR<1, "   \n \n ", "\n \n "))
+  )%>%
   arrange(endpoint,param2,subset)%>%
   mutate(label=factor(label,levels=label))
 res3.2
@@ -1030,7 +1042,7 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
   geom_point(
     aes(col = subset, shape = subset),
     position = position_dodge(width = 0.8),
-    size = 2,
+    size = 3,
     na.rm = TRUE
   ) +
   guides(col = guide_legend(reverse = TRUE,override.aes = list(alpha=1)),
@@ -1044,7 +1056,8 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
         axis.text=element_text(color="black",size=11),
         legend.text = element_text(size=11),legend.title=element_text(size=11),
         axis.title = element_text(size=12), strip.text = element_text(size=11),
-        panel.grid.major.y=element_blank(),plot.margin=margin(l=0))
+        panel.grid.major.y=element_blank(),plot.margin=margin(l=0)) +
+  scale_color_brewer(palette = "Dark2")
 ggsave("analysis/figures/postDLI_forest.png",dpi=300,height=6,width=11)
 
 
@@ -1076,8 +1089,8 @@ CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
   ) +
  # coord_cartesian(ylim = c(log()))
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)#,
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)#,
     #limits = c(log(0.5), log(500))
   ) +
   #coord_fixed()
@@ -1130,8 +1143,8 @@ CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
     zoom.size = 1L
   ) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
   ) +
   theme_light() +
   theme(axis.title.x = element_blank())
@@ -1171,8 +1184,8 @@ CD3_sub <- data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
     zoom.size = 1L
   ) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
   ) +
   theme_light() +
   theme(axis.title.x = element_blank())
@@ -1185,12 +1198,16 @@ remove_zoom_rectangle <- function(p) {
 }
 
 library(cowplot)
-legend_b <- get_legend(CD4_sub + theme(legend.position = "top"))
+legend_b <- get_legend(CD4_sub + theme(legend.position = "top") +
+                         scale_colour_discrete(labels = c("RD", "UD(+ATG)")) +
+                         scale_linetype_discrete("Risk group",
+                                                 labels = c("Non-high risk", "High risk"))
+                         )
 
 prow <- plot_grid(
+  remove_zoom_rectangle(CD3_sub + theme(legend.position="none")),
   remove_zoom_rectangle(CD4_sub + theme(legend.position="none")),
   remove_zoom_rectangle(CD8_sub + theme(legend.position="none")),
-  remove_zoom_rectangle(CD3_sub + theme(legend.position="none")),
   #align = 'vh',
   #labels = c("A", "B", "C"),
   #hjust = -1,

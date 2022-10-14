@@ -114,7 +114,7 @@ plotResid <- function (x, y, col.loess = "black", ...) {
 
 # Make wrapper function with ggplot2 facets marginal,subject~ model
 # feeds list of models
-plot(postDLI_JM_corr_CD8)
+plot(mods$postDLI_JM_corr_CD8)
 
 # Marginal residuals
 resMargY.cd8 <- residuals(postDLI_JM_corr_CD8, process = "Longitudinal", type = "Marginal")
