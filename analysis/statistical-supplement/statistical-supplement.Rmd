@@ -15,6 +15,7 @@ header-includes:
   - \usepackage[onehalfspacing]{setspace}
   - \onecolumn
   - \firstpage{1}
+  - \raggedbottom
 editor_options: 
   chunk_output_type: console
 ---
@@ -61,35 +62,152 @@ The main article seeked to investigate the impact of early low-dose donor lympho
 - Baseline patient characteristics.
 - Absolute T-cell counts measured routinely at discrete timepoints (not exactly the same times across patients) starting from time of allogeneic stem cell transplantation (alloSCT).
 - Time of standard prophylactic DLI, and time of early low dose DLI (if given).
-- Time to various clinical events occurring during follow-up, such as Graft-versus-
-Host-Disease (GvHD) or relapse of the underlying disease.
+- Time to various clinical events occurring during follow-up, such as start of therapeutic immunosuppression Graft-versus-Host-Disease (GvHD) or relapse of the underlying disease.
 
 Note that the data components outlined above are inextricably interlinked. For example, a patient dying or dropping out of a study clearly precludes any further T-cell measurements from being collected. In other words, the T-cell counts that would have been measured in the absence of death or drop-out are *missing*. The suspected reason(s) behind this missingness is a key consideration behind the choice of analysis approach: the occurrence of death could be related to observed (e.g. baseline covariates, measured T-cell counts) or unobserved (e.g. latent characteristics of the T-cell counts, such as rate of increase at a point in time) information [@rouanetInterpretationMixedModels2019].
 
-While death and drop-out are well-known drivers of cohort attrition, for modelling purposes the longitudinal measurements may also be `artificially terminated' at the occurrence of some clinical event of interest (e.g. GvHD in the present context) after which the patient may in reality remain in follow-up afterwards. While it may be clear why we should do this when modelling the association between a longitudinal marker and a time-to-event outcome (future measurements cannot help predict past events), it is also an important consideration for the trajectory of the marker itself: the population of interest evolves over time, and the clinical may influence the trajectories.
+While death and drop-out are well-known drivers of cohort attrition, for modelling purposes the longitudinal measurements may also be `artificially terminated' at the occurrence of some clinical event of interest (e.g. GvHD in the present context) after which the patient may in reality remain in follow-up afterwards. While it may be clear why we should do this when modelling the association between a longitudinal marker and a time-to-event outcome (future measurements cannot help predict past events), it is also an important consideration for the trajectory of the marker itself: the population of interest evolves over time, and the clinical event may influence the trajectories themselves.
 
 ## Modelling the impact of early low-dose DLI on T-cell kinetics
 
-Descriptives, linear models, mixed models, joint models
+In the main article, we performed an intention-to-treat (ITT) analysis, comparing baseline disease risk groups on the basis of which early low-dose DLIs were scheduled. A first avenue for assessing the impact of early low-dose DLI on T-cell kinetics would be simple descriptive analysis: for example, selecting a number of timepoints or intervals and thereafter visualizing the distribution and average of the T-cell counts per ITT group. The plot below shows a possible analysis for the CD4 counts.
 
-Reference on intermediate event trajectory paper Greg
+```{r descrip, eval=TRUE, fig.cap = "Descriptive analysis", fig.pos="H",fig.height=4}
+dat_long <- NMA_preDLI_datasets$long
+dat_wide <- NMA_preDLI_datasets$wide
 
-Joint model population currently alive estimand/random effect set to zero
+dat_long[, time_cat := cut(
+  intSCT2_7, include.lowest = TRUE, breaks = seq(0, 6, length.out = 7)
+)]#ggplot2::cut_number(intSCT2_7, 8)]
+dat_long |> 
+  ggplot(aes(time_cat, CD4_abs_log, fill = hirisk)) +
+  geom_boxplot() +
+  facet_wrap(
+    ~ ATG, 
+    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)"))
+  ) +
+  scale_fill_discrete(
+    "Risk group",
+    labels = c("Non-high risk", "High risk")
+  ) +
+  scale_y_continuous(
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
+  ) +
+  labs(
+    x = "Time interval (months since alloSCT)",
+    y = expression(paste("CD4 (x10"^"6","/l)"))
+  ) +
+  theme(legend.position = "top")
+```
+
+```{r linmod-flex, fig.cap = "Analysis using a linear model with restricted cubic splines.", fig.pos="H", fig.height=4}
+library(splines)
+mod_lin <- lm(
+  formula = CD4_abs_log ~ ns(intSCT2_7, 3) * hirisk * ATG,
+  data = dat_long
+)
+dat_long[, pred_lin := predict(mod_lin)]
+
+dat_long |> 
+  ggplot(aes(intSCT2_7, CD4_abs_log)) +
+  geom_line(aes(group = IDAA), size = 1, alpha = 0.1) +
+  #geom_boxplot() +
+  facet_wrap(
+    ~ ATG, 
+    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)"))
+  ) +
+  geom_line(
+    aes(y = pred_lin, group = hirisk, col = hirisk, linetype = hirisk),
+    size = 2
+  ) + 
+  scale_y_continuous(
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
+  ) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("CD4 (x10"^"6","/l)"))
+  ) +
+  scale_colour_discrete(
+    "Risk group",
+    labels = c("Non-high risk", "High risk")
+  ) +
+  scale_linetype_discrete(
+    "Risk group",
+    labels = c("Non-high risk", "High risk")
+  ) +
+  theme(legend.position = "top")
+```
+
+Since conclusions based on a descriptive analysis may depend on the chosen time intervals and number of measurements per interval, we may instead choose to smooth across the individual trajectories using a (flexible) linear model (Figure S2). This however does not take into account individual heterogeneity in trajectories. Figure S3 looks at the average and fitted individual trajectories obtained with the linear mixed effects model.
+
+```{r mixed-mod, fig.cap="Analysis using a linear mixed-effects model.", fig.pos="H", fig.height=4}
+library(nlme)
+mod_mixed <- lme(
+  fixed = CD4_abs_log ~ ns(intSCT2_7, 3) * hirisk * ATG,
+  data = dat_long, 
+  random = ~ 0 + ns(intSCT2_7, 3) | IDAA,
+  control = lmeControl(opt = "optim", msMaxIter = 200)
+)
+
+dat_long[, ':=' (
+  pred_marg = predict(mod_mixed, level = 0L),
+  pred_indiv = predict(mod_mixed, level = 1L)
+)]
+
+dat_long |> 
+  ggplot(aes(intSCT2_7, pred_indiv)) +
+  geom_line(aes(group = IDAA), size = 1, alpha = 0.1) +
+  #geom_boxplot() +
+  facet_wrap(
+    ~ ATG, 
+    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)"))
+  ) +
+  geom_line(
+    aes(y = pred_marg, group = hirisk, col = hirisk, linetype = hirisk),
+    size = 2
+  ) + 
+  scale_y_continuous(
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
+  ) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("CD4 (x10"^"6","/l)"))
+  ) +
+  scale_colour_discrete(
+    "Risk group",
+    labels = c("Non-high risk", "High risk")
+  ) +
+  scale_linetype_discrete(
+    "Risk group",
+    labels = c("Non-high risk", "High risk")
+  ) +
+  theme(legend.position = "top")
+```
+
+Note that the mixed model based analysis relies on the assumption that the termination of the measurements can be explained only by observed characteristics.
 
 ## Association between T-cell kinetics and clinical events
 
-Time-dependent Cox suboptimal, added complexity with each comp risk (Cuer paper?)
+Something about the time-dependent Cox being sub-optimal.
 
 ## Bringing together the two: a joint model
 
-Cite Rizopoulos, and Greg JMs overview paper
+Referencing main book [@rizopoulosJointModelsLongitudinal2012] and a shorter overview article [@papageorgiouOverviewJointModeling2019].
+
+Something about trajectories interpretation as immortal cohort or for a living patient with random effects equal to zero [@rouanetHowSelectionTime2022].
+
+Something about possibility of modelling the intermediate DLI explicity in the trajectories as [@papageorgiouIndividualizedDynamicPrediction2019], or instead use multi-state submodel [Ferrer reference].
+
+Also possibly reference Cuer paper on competing risks joint models.
 
 ```{r test-swimmer,fig.cap="Swimmer plot (to do: label DLI)", fig.pos="htbp", fig.dim=c(6, 8), eval=FALSE}
 # Only works with out.width for now; place at end / beginning sections
 # See also https://stackoverflow.com/questions/42486617/knitr-ignoring-fig-pos
 # https://github.com/rstudio/rmarkdown/issues/1345
-dat_long <- NMA_preDLI_datasets$long
-dat_wide <- NMA_preDLI_datasets$wide
+
 #dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")]
 
 # Prep endpoints 
@@ -239,11 +357,12 @@ purrr::map_dfr(
   labs(x = "Fitted values", y = "Standardized Residuals")
 ```
 
-# General considerations
+# Other considerations
 
 <!-- Example snippet-->
 
-```{r test-snip, echo=FALSE, eval=FALSE}
+```{r test-snip, echo=TRUE, eval=FALSE}
+# Add snippets or not?
 jointModel(
   lmeObject = preDLI_long_corr_CD3,
   survObject = preDLI_cox,
@@ -261,10 +380,6 @@ jointModel(
 
 ## Software choices
 
-`{JM}`, `{JMbayes}`, `{JMbayes2}`, `{joineR}`, `{joineRML}`.. hickeyComparisonJointModels2018
-
-## Optimisation in JM
-
-(Probably skip)
+`{JM}`, `{JMbayes}`, `{JMbayes2}`, `{joineR}`, `{joineRML}` - citing @hickeyComparisonJointModels2018
 
 # References
