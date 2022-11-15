@@ -3,7 +3,7 @@
 
 preDLI_targets <- list(
 
-  # -- Pre-DLI Cox model (no tdep DLI)
+  # -- Pre-DLI Cox model
   tar_target(
     preDLI_cox,
     run_preDLI_cox(
@@ -29,7 +29,7 @@ preDLI_targets <- list(
     )
   ),
 
-  # Not many events for we lower flexibility of baseline hazard (from 5 to 3 internal knots)
+  # Not many events for we lower default flexibility of baseline hazard (from 5 to 3 internal knots)
   tar_target(preDLI_basehaz_knots, 3L),
 
   # -- Joint models, correlated reffs
@@ -83,7 +83,7 @@ preDLI_targets <- list(
     )
   ),
 
-  # -- Both, corr reffs
+  # -- Both current value + slope, corr reffs
 
   # Store the deriv form (since same for all mods)
   tar_target(
@@ -138,7 +138,7 @@ preDLI_targets <- list(
     )
   ),
 
-  # -- Try interaction analyses with current value
+  # -- Try interaction analyses of current value with UD(+ATG)
 
   tar_target(
     preDLI_JM_value_corr_CD4_inter,
@@ -151,9 +151,9 @@ preDLI_targets <- list(
       interFact = list(
         "value" = ~ trans1 + trans1:ATG.1 +
           trans2 + trans2:ATG.2 +
-          # later omit trans3 since not interesting, could also do for slope models
+          # omit trans3 interaction since not interesting, could also do for slope models
           # i.e. include slope only relapse and gvhd
-          trans3 + trans3:ATG.3 - 1
+          trans3 - 1
       ),
       verbose = TRUE
     )
@@ -168,10 +168,7 @@ preDLI_targets <- list(
       lng.in.kn = preDLI_basehaz_knots,
       interFact = list(
         "value" = ~ trans1 + trans1:ATG.1 +
-          trans2 + trans2:ATG.2 +
-          # later omit trans3 since not interesting, could also do for slope models
-          # i.e. include slope only relapse and gvhd
-          trans3 + trans3:ATG.3 - 1
+          trans2 + trans2:ATG.2 + trans3 - 1
       ),
       verbose = TRUE
     )
@@ -186,10 +183,7 @@ preDLI_targets <- list(
       lng.in.kn = preDLI_basehaz_knots,
       interFact = list(
         "value" = ~ trans1 + trans1:ATG.1 +
-          trans2 + trans2:ATG.2 +
-          # later omit trans3 since not interesting, could also do for slope models
-          # i.e. include slope only relapse and gvhd
-          trans3 + trans3:ATG.3 - 1
+          trans2 + trans2:ATG.2 + trans3 - 1
       ),
       iter.EM = 250,
       verbose = TRUE

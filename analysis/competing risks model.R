@@ -4,11 +4,15 @@ library(survival)
 library(prodlim)
 
 tar_load(NMA_preDLI_datasets)
+dat_wide <- NMA_preDLI_datasets$wide
+table(dat_wide$endpoint_specify7)
 
-fit_compEvents_ITT<-prodlim(Hist(endpoint7, endpoint7_s, cens.code = "censored")~hirisk,
-                            data=NMA_preDLI_datasets$wide%>%
-                              #filter(TCD%in%c("NMA RD: ALT","NMA UD: ALT + 1mg ATG","NMA UD: ALT + 2mg ATG"))%>%
-                              mutate(endpoint7_s=ifelse(endpoint7_s=="7 days after cellular intervention","censored",endpoint7_s)))
+fit_compEvents_ITT <- prodlim(
+  Hist(endpoint7, endpoint7_s, cens.code = "censored")~hirisk,
+  data=NMA_preDLI_datasets$wide%>%
+    #filter(TCD%in%c("NMA RD: ALT","NMA UD: ALT + 1mg ATG","NMA UD: ALT + 2mg ATG"))%>%
+    mutate(endpoint7_s=ifelse(endpoint7_s=="7 days after cellular intervention","censored",endpoint7_s))
+)
 
 summary(fit_compEvents_ITT, times=c(0,3,6))
 

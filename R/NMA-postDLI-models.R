@@ -1,9 +1,5 @@
 # Targets after DLI - update: in actual earlylow subset
 
-# To-do:
-# - correlated long sub-models
-# - no more need for predicting from previous model
-# - use same specification as pre-DLI (see new proposal)
 
 postDLI_targets <- list(
 
@@ -13,7 +9,7 @@ postDLI_targets <- list(
       postDLI_long_corr,
       run_preDLI_longitudinal(
         cell_line = paste0(cell_line, "_abs_log"),
-        form_fixed = "ns(intDLI1, 2) * ATG + CMV_PD", # remove cmvpd
+        form_fixed = "ns(intDLI1, 2) * ATG + CMV_PD",
         form_random = ~ ns(intDLI1, 2) | IDAA,
         dat = NMA_postDLI_datasets$long
       )
@@ -28,7 +24,8 @@ postDLI_targets <- list(
       dat_wide = NMA_postDLI_datasets$wide
     )
   ),
-  tar_target(postDLI_basehaz_knots, 2L), # 3L used pre-DLI, consider 1-2 here
+  # 3L used pre-DLI, consider 2L since only on portion of follow-up
+  tar_target(postDLI_basehaz_knots, 2L),
   tar_target(
     postDLI_JM_corr_CD3,
     jointModel(
@@ -81,6 +78,3 @@ postDLI_targets <- list(
     )
   )
 )
-
-
-# GVHD sensitivity analysis
