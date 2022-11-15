@@ -10,7 +10,8 @@ preDLI_targets <- list(
       form = Surv(time, status) ~
         ATG.1 + hirisk.1 + # GVHD
         ATG.2 + hirisk.2 + # Relapse
-        ATG.3 + strata(trans), # NRF other
+        ATG.3 + # NRF other
+        strata(trans),
       dat_wide = NMA_preDLI_datasets$wide
     )
   ),
@@ -43,7 +44,7 @@ preDLI_targets <- list(
       timeVar = "intSCT2_7",
       parameterization = "value",
       interFact = list("value" = ~ strata(trans) - 1),
-      iter.qN = 1000,
+      iter.qN = 1000L,
       lng.in.kn = preDLI_basehaz_knots,
       numeriDeriv = "cd",
       eps.Hes = 1e-04
@@ -59,7 +60,7 @@ preDLI_targets <- list(
       timeVar = "intSCT2_7",
       parameterization = "value",
       interFact = list("value" = ~ strata(trans) - 1),
-      iter.qN = 1000,
+      iter.qN = 1000L,
       lng.in.kn = preDLI_basehaz_knots,
       numeriDeriv = "cd",
       eps.Hes = 1e-04
@@ -75,7 +76,7 @@ preDLI_targets <- list(
       timeVar = "intSCT2_7",
       parameterization = "value",
       interFact = list("value" = ~ strata(trans) - 1),
-      iter.qN = 1000,
+      iter.qN = 1000L,
       lng.in.kn = preDLI_basehaz_knots,
       numeriDeriv = "cd",
       eps.Hes = 1e-04,
@@ -121,7 +122,7 @@ preDLI_targets <- list(
       interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
       derivForm = derivForm_preDLI,
       lng.in.kn = preDLI_basehaz_knots,
-      iter.EM = 250,
+      iter.EM = 250L,
       verbose = TRUE
     )
   ),
@@ -149,8 +150,7 @@ preDLI_targets <- list(
       parameterization = "value",
       lng.in.kn = preDLI_basehaz_knots,
       interFact = list(
-        "value" = ~ trans1 + trans1:ATG.1 +
-          trans2 + trans2:ATG.2 +
+        "value" = ~ trans1 + trans1:ATG.1 + trans2 + trans2:ATG.2 +
           # omit trans3 interaction since not interesting, could also do for slope models
           # i.e. include slope only relapse and gvhd
           trans3 - 1
@@ -167,8 +167,7 @@ preDLI_targets <- list(
       parameterization = "value",
       lng.in.kn = preDLI_basehaz_knots,
       interFact = list(
-        "value" = ~ trans1 + trans1:ATG.1 +
-          trans2 + trans2:ATG.2 + trans3 - 1
+        "value" = ~ trans1 + trans1:ATG.1 + trans2 + trans2:ATG.2 + trans3 - 1
       ),
       verbose = TRUE
     )
@@ -182,12 +181,10 @@ preDLI_targets <- list(
       parameterization = "value",
       lng.in.kn = preDLI_basehaz_knots,
       interFact = list(
-        "value" = ~ trans1 + trans1:ATG.1 +
-          trans2 + trans2:ATG.2 + trans3 - 1
+        "value" = ~ trans1 + trans1:ATG.1 + trans2 + trans2:ATG.2 + trans3 - 1
       ),
-      iter.EM = 250,
+      iter.EM = 250L,
       verbose = TRUE
     )
   )
 )
-

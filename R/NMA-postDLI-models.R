@@ -1,8 +1,9 @@
-# Targets after DLI - update: in actual earlylow subset
+# Post DLI models ---------------------------------------------------------
 
 
 postDLI_targets <- list(
 
+  # -- Longitudinal models - correlated reffs, random intercept + slope
   tar_map(
     values = cell_lines,
     tar_target(
@@ -16,7 +17,7 @@ postDLI_targets <- list(
     )
   ),
 
-  # Post-DLI cox: single model needed
+  # -- Post-DLI cox:
   tar_target(
     postDLI_cox,
     run_postDLI_cox(
@@ -24,8 +25,11 @@ postDLI_targets <- list(
       dat_wide = NMA_postDLI_datasets$wide
     )
   ),
-  # 3L used pre-DLI, consider 2L since only on portion of follow-up
+
+  # 3L used pre-DLI, consider now 2L since only on portion of follow-up
   tar_target(postDLI_basehaz_knots, 2L),
+
+  # -- Joint models, correlated reffs
   tar_target(
     postDLI_JM_corr_CD3,
     jointModel(
@@ -37,7 +41,7 @@ postDLI_targets <- list(
       method = "spline-PH-aGH",
       timeVar = "intDLI1",
       lng.in.kn = postDLI_basehaz_knots,
-      iter.EM = 1000,
+      iter.EM = 1000L,
       numeriDeriv = "cd",
       eps.Hes = 1e-04,
       verbose = TRUE
@@ -54,7 +58,7 @@ postDLI_targets <- list(
       method = "spline-PH-aGH",
       timeVar = "intDLI1",
       lng.in.kn = postDLI_basehaz_knots,
-      iter.EM = 1000,
+      iter.EM = 1000L,
       numeriDeriv = "cd",
       eps.Hes = 1e-04,
       verbose = TRUE
@@ -71,7 +75,7 @@ postDLI_targets <- list(
       method = "spline-PH-aGH",
       timeVar = "intDLI1",
       lng.in.kn = postDLI_basehaz_knots,
-      iter.EM = 1000,
+      iter.EM = 1000L,
       numeriDeriv = "cd",
       eps.Hes = 1e-04,
       verbose = TRUE

@@ -1,6 +1,6 @@
+# Editing code here:
+# https://github.com/drizopoulos/JM/blob/9d1fecf6c1fd4f6089d530929b5219b661134460/R/fitted.jointModel.R
 fitted_slopes_long <- function(object) {
-
-  # Editing code here https://github.com/drizopoulos/JM/blob/9d1fecf6c1fd4f6089d530929b5219b661134460/R/fitted.jointModel.R
 
   # Here we collect terms regarding derivative w.r.t time
   derivForm <- object$derivForm

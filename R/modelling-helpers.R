@@ -1,11 +1,9 @@
-# dli model needs to be connected after with model..
-
 #' Prepare wide and long format datasets for models before/up to DLI
 #'
 #' The long format dataset is used to run the mixed models, while the wide
 #' data is a) used mainly for descriptives, and b) used for survival submodel
 #'
-#' @param dat_merged Dataset that merges raw lympocyte and variable data
+#' @param dat_merged Dataset that merges raw lymphocyte and variable data
 #' using `prepare_raw_data()`.
 #' @param admin_cens Time of administrative censoring (months)
 #'
@@ -40,7 +38,7 @@ get_preDLI_datasets <- function(dat_merged,
 
   # Define the endpoint
   dat[, endpoint7_s := factor(
-    endpoint7_s,
+    x = endpoint7_s,
     levels = c(
       "censored",
       "non-relapse failure: GvHD",
@@ -60,7 +58,7 @@ get_preDLI_datasets <- function(dat_merged,
   # Measurements are terminated by endpoint
   dat <- dat[intSCT2_7 < endpoint7]
 
-  # Remove (couple) of missings from cell variables
+  # Remove missings from cell variables early on in follow-up
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
   dat <- na.omit(dat, cols = cell_vars)
 
@@ -68,19 +66,18 @@ get_preDLI_datasets <- function(dat_merged,
   factors <- which(vapply(dat, FUN = is.factor, FUN.VALUE = logical(1L)))
   dat[, (factors) := lapply(.SD, droplevels), .SDcols = factors]
 
-  # Add ATG variable (only relevant NMA)
+  # Add ATG/UD variable (only relevant for NMA cohort)
   dat[, ATG := factor(
-    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "UD(+ATG)", "UD"),
-    levels = c("UD", "UD(+ATG)")
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "UD(+ATG)", "RD"),
+    levels = c("RD", "UD(+ATG)")
   )]
 
   # Make the wide dataset
   dat_wide <- data.table::dcast(
     data = dat,
-    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
-      endpoint7_s + endpoint7 + endpoint_specify7 +
-      HLAmismatch_GvH + relation +
-      uDLI + uDLI_s + earlylow_DLI + TCD + TCD2 + TCDmethod ~ .,
+    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD + endpoint7_s + endpoint7 +
+      endpoint_specify7 + HLAmismatch_GvH + relation + uDLI + uDLI_s + earlylow_DLI +
+      TCD + TCD2 + TCDmethod ~ .,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")
@@ -105,9 +102,17 @@ run_preDLI_cox <- function(form, dat_wide, ...) {
 
   # Prepare data
   tmat <- trans.comprisk(K = 3, names = c("gvhd", "relapse", "other_nrf"))
-  covs <- c("CMV_PD", "hirisk", "ATG", "earlylow_DLI",
-            "HLAmismatch_GvH", "relation", "SCT_May2010")
+  covs <- c(
+    "CMV_PD",
+    "hirisk",
+    "ATG",
+    "earlylow_DLI",
+    "HLAmismatch_GvH",
+    "relation",
+    "SCT_May2010"
+  )
 
+  # Prepare "long" data to run cause-specific hazard models
   msdat <- msprep(
     time = c(NA, rep("endpoint7", 3)),
     status = with(
@@ -168,7 +173,7 @@ run_preDLI_longitudinal <- function(cell_line,
   main_args <- list(
     "fixed" = form,
     "random" = form_random,
-    "control" = nlme::lmeControl(opt = "optim", msMaxIter = 200),
+    "control" = nlme::lmeControl(opt = "optim", msMaxIter = 200L),
     "data" = dat
   )
 
@@ -187,7 +192,7 @@ run_preDLI_longitudinal <- function(cell_line,
 # Joint modeling helpers --------------------------------------------------
 
 
-# Add indiv trans to model mat
+# Need this to specify different interactions/slopes in different transitions
 tweak_preDLI_modmat <- function(cox_model) {
   cox_model$model$trans1 <- as.numeric(cox_model$model$`strata(trans)` == "trans=1")
   cox_model$model$trans2 <- as.numeric(cox_model$model$`strata(trans)` == "trans=2")
@@ -199,9 +204,8 @@ tweak_preDLI_modmat <- function(cox_model) {
 # Post-DLI helpers --------------------------------------------------------
 
 
-# - This one now to be added with new endpoint in subset..
 get_postDLI_datasets <- function(dat_merged,
-                                 admin_cens_dli = 3) { # Three mo.s after early low-dose
+                                 admin_cens_dli = 3) { # Three months after early low-dose
 
   # Variables to keep
   vars <- c(
@@ -248,29 +252,26 @@ get_postDLI_datasets <- function(dat_merged,
 
   # Add ATG variable (only relevant NMA)
   dat[, ATG := factor(
-    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "UD(+ATG)", "UD"),
-    levels = c("UD", "UD(+ATG)")
+    ifelse(TCDmethod %in% c("ALT + 1mg ATG", "ALT + 2mg ATG"), "UD(+ATG)", "RD"),
+    levels = c("RD", "UD(+ATG)")
   )]
 
   # Selection happens
-  dat <- dat[earlylow_DLI == "yes"] # Only those with early DLI
+  dat <- dat[earlylow_DLI == "yes"] # Only those with early-low DLI
 
   # Endpoint needs to be in t since DLI
   dat[, sec_endpoint2 := sec_endpoint2 - uDLI_actual]
-
-  # Measurements at endpoint taken as just prior (13 pats, all cens and one DLI)
-  # (check with Eva anyway)
-  #dat[intDLI1 == sec_endpoint2 & sec_endpoint2_specify != "relapse", intDLI1 := intDLI1 - 0.01]
-  # Not needed in the end
 
   # Admin censoring
   dat[sec_endpoint2 >= admin_cens_dli, ':=' (
     sec_endpoint2 = admin_cens_dli,
     sec_endpoint2_s = "cens"
   )]
+
+  # Keep measurements between DLI and endpoint
   dat <- dat[intDLI1 < sec_endpoint2 & intDLI1 >= 0]
 
-  # Remove (couple) of missings from cell variables
+  # Remove missings from cell variables
   cell_vars <- grep(x = colnames(dat), pattern = "_log$", value = TRUE)
   dat <- na.omit(dat, cols = cell_vars)
 
@@ -281,10 +282,9 @@ get_postDLI_datasets <- function(dat_merged,
   # Make the wide dataset
   dat_wide <- data.table::dcast(
     data = dat,
-    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD +
-      sec_endpoint2_s + sec_endpoint2 + sec_endpoint2_specify +
-      HLAmismatch_GvH + relation +
-      uDLI + uDLI_s + earlylow_DLI + TCD + TCD2 + TCDmethod ~ .,
+    formula = IDAA + SCT_May2010 + hirisk + ATG + CMV_PD + sec_endpoint2_s + sec_endpoint2 +
+      sec_endpoint2_specify + HLAmismatch_GvH + relation + uDLI + uDLI_s + earlylow_DLI +
+      TCD + TCD2 + TCDmethod ~ .,
     fun = length
   )
   data.table::setnames(dat_wide, old = ".", new = "n_measurements")
@@ -296,14 +296,11 @@ get_postDLI_datasets <- function(dat_merged,
 }
 
 
-
-
+# Same principle as preDLI function
 run_postDLI_cox <- function(form, dat_wide, ...) {
 
   # Prepare data
   tmat <- trans.comprisk(K = 2, names = c("DLI", "GVHD", "REL_NRF"))
-  #covs <- c("CMV_PD", "hirisk", "ATG", "earlylow_DLI",
-  #          "HLAmismatch_GvH", "relation", "SCT_May2010")
   covs <- c("ATG")
 
   dat_wide_prepped <- copy(dat_wide)
@@ -337,4 +334,3 @@ run_postDLI_cox <- function(form, dat_wide, ...) {
 
   return(mod_comp)
 }
-

@@ -2,7 +2,9 @@
 
 #' Summarises event submodel of joint model
 #'
-#' (Only works when no interaction in function form)
+#' Maybe later develop into tidy(..., model = "event") or so?
+#'
+#' (Only works when no interaction in functional form)
 summarise_event_submodel <- function(JMfit,
                                      digits = 3) {
 
