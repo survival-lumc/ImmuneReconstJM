@@ -78,10 +78,8 @@ targets_list <- list(
       admin_cens_dli = 3
     )
   )
-  #tarchetypes::tar_render(analysis_summary, path = "analysis/2020-09_analysis-summary.Rmd")
-  #tarchetypes::tar_render([and rmd with raw data visualisations, also after data prep..
-  #.. interactive with plotly?])
-  # Or with shiny??
+  # Maybe rmd with figures here?
+  #tarchetypes::tar_render(analysis_summary, path = "analysis/....Rmd")
 )
 
 # Source targets

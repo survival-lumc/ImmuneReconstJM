@@ -8,6 +8,8 @@ library(JM)
 
 theme_set(theme_bw(base_size = 14))
 
+# Add unified colour palette!
+
 tar_load(
   c(
     NMA_preDLI_datasets,
@@ -34,6 +36,7 @@ tar_load(
 
 source("R/modelling-helpers.R")
 source("R/plotting-helpers.R")
+source("R/summarising-helpers.R")
 
 #### preDLI ####
 dat_wide_pre <- NMA_preDLI_datasets$wide
@@ -130,14 +133,17 @@ ggsave("analysis/figures/preDLI_lines_indiv.png",dpi=300,width=12,height=8) # th
 
 
 # all pre-DLI trajectories per endpoint -----------------------------------
-ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, color=IDAA)) + # CD3_abs_log instead of curr_val to get raw values
-  geom_line(show.legend = FALSE)+
+
+
+ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, group=IDAA)) +
+  geom_line(show.legend = FALSE, size = 1, alpha = 0.5, col = "darkblue")+
   labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
   scale_y_continuous(
     breaks = log(c(5, 25, 100, 500, 1500)),
     labels = c(5, 25, 100, 500, 1500)
   ) +
   facet_wrap(~endpoint_lab, labeller=as_labeller(c("Censored"="Censored", "GvHD"="GvHD", "Relapse"="Relapse", "Other failure"="Other failure")))
+
 ggsave("analysis/figures/preDLI_perEndpoint.png",dpi=300,width=8,height=8) # this is Supplemental Figure 1
 
 
@@ -150,52 +156,6 @@ mod_names <- c(
 )
 names(mod_names) <- mod_names
 mods <- lapply(mod_names, tar_read_raw)
-
-table_mod_summary <- function(model) {
-
-  # Event summary extract
-  summ_mod <- summary(model)
-  surv_tab <- summ_mod$`CoefTable-Event`
-
-  # Make table
-  summary_raw <- data.table::data.table(surv_tab, keep.rownames = TRUE)
-  data.table::setnames(summary_raw, "rn", "Coefficient")
-  dt <- summary_raw[grep("^bs", x = Coefficient, invert = TRUE)]
-
-  dt[, event_num := regmatches(
-    x = Coefficient,
-    m = regexpr(pattern = "[+1-9]$", text = Coefficient)
-  )]
-
-  dt[, event := factor(
-    x = event_num,
-    levels = seq_len(3),
-    labels = c("GvHD", "Relapse", "NRF: Other")
-  )]
-
-  dt[, Coefficient := gsub(x = Coefficient, pattern = "\\:.*", replacement = "")]
-  dt[, Coefficient := gsub(x = Coefficient, pattern = "\\.[+1-9]$", replacement = "")]
-  dt[, Coefficient := factor(
-    x = Coefficient,
-    levels = c("ATG", "hirisk", "Assoct", "Assoct.s"),
-    labels = c("Unrel. donor (+ATG)", "High risk (ITT)", "Current value", "Slope")
-  )]
-  data.table::setorder(dt, event, Coefficient)
-  dt_edit <- dt[, c("event", "Coefficient", "Value", "Std.Err", "p-value")]
-  data.table::setnames(dt_edit, new = c("Event", "Coefficient", "log(HR)", "SE", "p-value"))
-  dt_edit[, "HR [95% CI]" := paste0(
-    as.character(round(exp(`log(HR)`), 3)), " [",
-    as.character(round(exp(`log(HR)` - qnorm(0.975) * SE), 3)), ";",
-    as.character(round(exp(`log(HR)` + qnorm(0.975) * SE), 3)), "]"
-  )]
-  dt_edit[, Event := NULL]
-  # Change order?
-  dt_edit <- dt_edit[, c("Coefficient", "HR [95% CI]", "log(HR)", "SE", "p-value")]
-  dt_edit[, c("log(HR)", "SE", "p-value") := lapply(.SD, function(x) round(x, 3)),
-          .SDcols = c("log(HR)", "SE", "p-value")]
-
-  return(dt_edit)
-}
 
 table(dat_wide_pre$endpoint7_s)
 table(dat_wide_pre$endpoint7_s, dat_wide_pre$ATG)
@@ -226,7 +186,7 @@ marg_preds_preDLI <- lapply(mods_preDLI_value, function(mod) {
   )
 })
 
-# Good plot with one
+# Good plot with one -> use this one to make cmv plot..
 rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
   geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
@@ -259,295 +219,6 @@ rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
   theme(legend.position = "bottom")
 ggsave("analysis/figures/preDLI_trajectories.png",dpi=300,width=6,height=8) # this is Figure 2
 
-
-
-# Attempt zoomed-in  ------------------------------------------------------
-
-
-rbindlist(marg_preds_preDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 1,#alpha = 0.5,
-              col = NA) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  # Add repel labels?
-  facet_grid(
-    facets = cell_line ~ .,
-    labeller = as_labeller(
-      c(#"-/-"="CMV: -/-", "other P/D"="CMV: other",
-        "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
-        #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
-      )
-    )
-  ) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) + # add a common ylim for all
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme(legend.position = "bottom")
-
-# Pick nicer colours..
-# Use cowplot/ggpubr instead of faceting grid
-
-# Get zoomed in plot
-rbindlist(marg_preds_preDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 1, col = NA) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  # Add repel labels?
-  facet_grid(
-    facets = cell_line ~ .,
-    labeller = as_labeller(
-      c(#"-/-"="CMV: -/-", "other P/D"="CMV: other",
-        "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
-        #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
-      )
-    )
-  ) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(2.5, 6), ylim = c(log(10), log(500))) + # add a common ylim for all
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme(legend.position = "bottom")
-
-# Get histograms of times of early/low-dose DLIs
-
-
-# Custom plot just for CD4 ------------------------------------------------
-
-# Make zoomed-in version
-p_CD4_zoomed <-
-data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(
-    aes(ymin = low, ymax = upp),
-    fill = "gray",
-    alpha = 1,
-    col = NA
-  ) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(2, 6), ylim = c(log(10), log(250))) +
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
-
-p_CD4_zoomed
-
-#p_CD4_full <-
-data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(
-    aes(ymin = low, ymax = upp),
-    fill = "gray",
-    alpha = 1,
-    col = NA
-  ) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500)), clip = "off") +
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "bottom",
-        plot.margin = unit(c(1, 15, 1, 1), "lines")) +
-  geom_rect(aes(xmin = 2.5, xmax = 6,
-                ymin = log(10), ymax = log(250)), col = "black",
-            linetype = "dashed", fill = NA) +
-  annotation_custom(
-    ggplotGrob(p_CD4_zoomed),
-    xmin = 6.1,
-    xmax = 8,
-    ymin = log(5),
-    ymax = log(200)
-  )
-
-# Or switch around? Show zoomed one in main, show full follow-up in sub plot?
-
-
-# Try with ggforce
-library(ggforce)
-theme_set(theme_minimal())
-
-data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(
-    aes(ymin = low, ymax = upp),
-    fill = "gray",
-    alpha = 0.75,
-    col = NA
-  ) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  facet_zoom(
-    xlim = c(2, 6),
-    ylim = c(log(10), log(200)),
-    show.area = FALSE,
-    zoom.size = 1L
-  ) +
-  theme_light() #+
-
-#geom_text path?
-
-
-# Hacky one ---------------------------------------------------------------
-
-p_CD4_zoomed <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(
-    aes(ymin = low, ymax = upp),
-    fill = "gray",
-    alpha = 1,
-    col = NA
-  ) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(2.5, 6), ylim = c(log(10), log(250))) +
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
-
-p_CD4_zoomed
-
-
-p_CD4_full <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(
-    aes(ymin = low, ymax = upp),
-    fill = "gray",
-    alpha = 1,
-    col = NA
-  ) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500)), clip = "off") +
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "bottom",
-        plot.margin = unit(c(1, 15, 1, 1), "lines")) +
-  geom_rect(aes(xmin = 2.5, xmax = 6,
-                ymin = log(10), ymax = log(250)), col = "black",
-            linetype = "dashed", fill = NA)
-
-library(patchwork)
-
-
-base <- p_CD4_full | p_CD4_zoomed
-
-segments <- ggplot() +
-  geom_line(
-    data = cbind.data.frame(x = c(0, 1), y = c(0, 1)),
-    aes(x = x, y = x)
-  ) +
-  #geom_abline(intercept = 0, slope = 1) +
-  theme_void()
-
-#https://community.rstudio.com/t/how-can-i-connect-geom-vline-lines-across-facets-for-single-subject-design-plots/133160/2
-base + inset_element(
-  segments, left = -0.75, bottom = 0.8, right = 0, top = 1) +
-  inset_element(
-    segments, left = -0.75, bottom = 0.5, right = 0, top = 0)
 
 # Summary of post DLI models ----------------------------------------------
 
@@ -696,7 +367,7 @@ ggplot(
 ggsave("analysis/figures/postDLI_lines_indiv.png",dpi=300,width=12,height=8) # this is Supplemental Figure 2
 
 # all pre-DLI trajectories per endpoint -----------------------------------
-ggplot(dat_long_postDLI, aes(intSCT2_7_reset, CD3_abs_log, color=IDAA)) + # CD3_abs_log instead of curr_val to get raw values
+ggplot(dat_long_postDLI, aes(intSCT2_7_reset, CD3_abs_log, group=IDAA)) + # CD3_abs_log instead of curr_val to get raw values
   geom_line(show.legend = FALSE)+
   geom_point(data=dat_long_postDLI[!dat_long_postDLI$IDAA%in%dat_long_postDLI$IDAA[duplicated(dat_long_postDLI$IDAA)],],
              show.legend = FALSE, size = 0.5)+ # add dots for those with only one measurement
