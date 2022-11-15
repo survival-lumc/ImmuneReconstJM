@@ -111,7 +111,8 @@ dat_long[, pred_lin := predict(mod_lin)]
 
 dat_long |> 
   ggplot(aes(intSCT2_7, CD4_abs_log)) +
-  geom_line(aes(group = IDAA), size = 1, alpha = 0.1) +
+  geom_point(size = 3, alpha = 0.5, col = "lightblue") + 
+  #geom_line(aes(group = IDAA), size = 1, alpha = 0.1) +
   #geom_boxplot() +
   facet_wrap(
     ~ ATG, 
@@ -119,7 +120,7 @@ dat_long |>
   ) +
   geom_line(
     aes(y = pred_lin, group = hirisk, col = hirisk, linetype = hirisk),
-    size = 2
+    size = 3
   ) + 
   scale_y_continuous(
     breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),

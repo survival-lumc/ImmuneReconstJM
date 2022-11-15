@@ -57,7 +57,16 @@ UD_CD4_JM_value <- jointModel(
   verbose = TRUE
 )
 
-summary(UD_CD4_JM_value)$`CoefTable-Event`[1:4, ]
+summary(tar_read(preDLI_JM_value_corr_CD4))$`CoefTable-Event`
+summary(UD_CD4_JM_value)$`CoefTable-Event`
+
+cbind(
+  "Orig" = c(summary(tar_read(preDLI_JM_value_corr_CD4))$`CoefTable-Event`[1:8, "Value"], 0),
+  "Inter" = summary(mod_interaction)$`CoefTable-Event`[1:9, "Value"]
+)
+#summary(tar_read(preDLI_JM_value_corr_CD4))$`CoefTable-Event`
+
+
 summary(tar_read(preDLI_JM_value_corr_CD4_inter))$`CoefTable-Event`[1:11, ]
 
 UD_CD4_JM_value$Hessian |> matrixcalc::is.positive.definite()
@@ -98,10 +107,13 @@ predict(
 
 # Actually try interaction analysis ---------------------------------------
 
-# Hard code interactions first
+# Hard code transitions first
 preDLI_cox$model$trans1 <- as.numeric(preDLI_cox$model$`strata(trans)` == "trans=1")
 preDLI_cox$model$trans2 <- as.numeric(preDLI_cox$model$`strata(trans)` == "trans=2")
 preDLI_cox$model$trans3 <- as.numeric(preDLI_cox$model$`strata(trans)` == "trans=3")
+
+# Check the actual one that did run
+summary(tar_read(preDLI_JM_value_corr_CD4))
 
 mod_interaction <- jointModel(
   lmeObject = preDLI_long_corr_CD4,
@@ -111,15 +123,22 @@ mod_interaction <- jointModel(
   timeVar = "intSCT2_7",
   parameterization = "value",
   interFact = list(
-    "value" = ~ trans1 + trans1:ATG.1 + trans2 + trans2:ATG.2 + trans3 - 1,
+    "value" = ~ trans1 + trans1:ATG.1 + trans2 + trans3 - 1
   ),
-  iter.EM = 50,
   iter.qN = 1000,
   lng.in.kn = 3L,
   numeriDeriv = "cd",
   eps.Hes = 1e-04,
   verbose = TRUE
 )
+
+cbind(
+  "Orig" = c(summary(tar_read(preDLI_JM_value_corr_CD4))$`CoefTable-Event`[1:8, "Value"], 0),
+  "Inter" = summary(mod_interaction)$`CoefTable-Event`[1:9, "Value"]
+)
+
+summary(mod_interaction)
+table(NMA_preDLI_datasets$wide$endpoint7_s, NMA_preDLI_datasets$wide$ATG)
 
 table(
   NMA_preDLI_datasets$wide$endpoint7_s,
@@ -140,3 +159,33 @@ summary(mod_interaction)$`CoefTable-Event`[1:10, ]
 UD_postDLI_long <- NMA_postDLI_datasets$long[ATG == "UD(+ATG)"]
 UD_postDLI_wide <- NMA_postDLI_datasets$wide[ATG == "UD(+ATG)"]
 
+
+tar_load(c(postDLI_cox, postDLI_long_corr_CD4, postDLI_JM_corr_CD4))
+
+postDLI_cox$model$trans1 <- as.numeric(postDLI_cox$model$`strata(trans)` == "trans=1")
+postDLI_cox$model$trans2 <- as.numeric(postDLI_cox$model$`strata(trans)` == "trans=2")
+
+postDLI_inter_CD4 <- jointModel(
+  lmeObject = postDLI_long_corr_CD4,
+  survObject = postDLI_cox,
+  CompRisk = TRUE,
+  parameterization = "value",
+  interFact = list("value" = ~ trans1 + trans1:ATG.1 + trans2 + - 1),
+  method = "spline-PH-aGH",
+  timeVar = "intDLI1",
+  lng.in.kn = 2L,
+  iter.EM = 1000,
+  #tol1 = 1e-6,
+  #tol2 = 1e-6,
+  #tol3 = .Machine$double.eps,
+  #iter.qN = 1000,
+  #numeriDeriv = "cd",
+  #eps.Hes = 1e-04,
+  verbose = TRUE
+)
+
+summary(postDLI_inter_CD4)
+tar_load(NMA_postDLI_datasets)
+
+# Post DLI not enough for contrast
+table(NMA_postDLI_datasets$wide$ATG, NMA_postDLI_datasets$wide$sec_endpoint2_s)
