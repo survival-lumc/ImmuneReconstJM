@@ -220,6 +220,20 @@ rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
 ggsave("analysis/figures/preDLI_trajectories.png",dpi=300,width=6,height=8) # this is Figure 2
 
 
+# NEW CMV FIGURE HERE: ----------------------------------------------------
+
+
+rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(hirisk, CMV_PD))) +
+  geom_line() +
+  #geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
+  #geom_line(aes(linetype = hirisk, col = CMV_PD), size = 1.5, alpha = 0.75) +
+  facet_grid(cell_line ~ ATG)
+
+# Pathetic for CMV
+summary(preDLI_JM_value_corr_CD4)
+summary(postDLI_JM_corr_CD4) # do it for post DLI
+
 # Summary of post DLI models ----------------------------------------------
 
 dat_wide_postDLI <- NMA_postDLI_datasets$wide
@@ -741,6 +755,7 @@ zoom_areas <- list(
   "CD3" = list("x" = c(2, 6), y = c(log(100), log(700)))
 )
 
+# Needs ggforce 0.3.4!!
 library(ggforce)
 
 CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
@@ -775,7 +790,7 @@ CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
     linetype = "dashed",
     fill = NA
   ) +
-  facet_zoom(
+  facet_zoom2(
     xlim = zoom_areas$CD4$x,
     ylim = zoom_areas$CD4$y,
     show.area = FALSE,#shrink = T,
@@ -807,7 +822,7 @@ CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
     linetype = "dashed",
     fill = NA
   ) +
-  facet_zoom(
+  facet_zoom2(
     xlim = zoom_areas$CD8$x,
     ylim = zoom_areas$CD8$y,
     show.area = FALSE,
@@ -848,7 +863,7 @@ CD3_sub <- data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
     linetype = "dashed",
     fill = NA
   ) +
-  facet_zoom(
+  facet_zoom2(
     xlim = zoom_areas$CD3$x,
     ylim = zoom_areas$CD3$y,
     show.area = FALSE,
@@ -897,7 +912,24 @@ final <- ggpubr::annotate_figure(
 final
 class(final)
 
-pdf(file = "marginals-test.pdf", width = 6, height = 8)
+#pdf(file = "figures/marginals-zoomed.pdf", width = 6, height = 8)
+#final
+#dev.off()
+ggsave(
+  "./analysis/figures/marginals-zoomed.png",
+  plot = final,
+  width = 6,
+  height = 8,
+  units = "in",
+  bg = "transparent"
+)
+
+
+png(
+  filename = "./analysis/figures/marginals-zoomed.png",
+  width = 6, height = 8,
+  units = "in", res = 300
+)
 final
 dev.off()
 #gridExtra::grid.arrange(
@@ -905,23 +937,7 @@ dev.off()
 #)
 
 
-#
-#cowplot::plot_grid(
-#  CD4_sub, CD8_sub, CD3_sub, nrow = 3, ncol = 1
-#)
+# New facet zoom, mirrored.. ----------------------------------------------
 
-p_new <- ggpubr::ggarrange(
-  remove_zoom_rectangle(CD4_sub),
-  remove_zoom_rectangle(CD8_sub),
-  remove_zoom_rectangle(CD3_sub),
-  nrow = 3, ncol = 1,
-  common.legend = TRUE
-)
 
-p_final <- ggpubr::annotate_figure(
-  p_new,
-  bottom = ggpubr::text_grob("Time since alloSCT (months)",
-            hjust = 0.5)#, size = 10)
-)
-
-p_final
+# Stack link here:
