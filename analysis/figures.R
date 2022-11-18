@@ -1,15 +1,29 @@
-# figures for manuscript. Code based on/copied from meeting prep scripts
+# Reproducing manuscript figures ------------------------------------------
 
+
+# (Packages will be loaded from separate file later)
 library(targets)
 library(dplyr)
 library(data.table)
 library(ggplot2)
+library(grid)
 library(JM)
+library(extrafont) # For Roboto condensed font (may need to install font on pc first)
+library(Manu) # For sweet NZ bird colours
 
-theme_set(theme_bw(base_size = 14))
+# Global palette
+colrs <- Manu::get_pal("Hoiho")
 
-# Add unified colour palette!
+# Global plots theme
+theme_set(
+  theme_light(base_size = 14, base_family = "Roboto Condensed") +
+    theme(
+      strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
+      strip.text = element_text(colour = 'white')
+    )
+)
 
+# Load models/data
 tar_load(
   c(
     NMA_preDLI_datasets,
@@ -34,38 +48,39 @@ tar_load(
   )
 )
 
+# Helper functions
+source("R/facet_zoom2.R")
 source("R/modelling-helpers.R")
 source("R/plotting-helpers.R")
 source("R/summarising-helpers.R")
 
-#### preDLI ####
+# Load data
 dat_wide_pre <- NMA_preDLI_datasets$wide
 dat_long_pre <- NMA_preDLI_datasets$long
 
-dat_long_pre[, "endpoint_lab" := fcase(
-  endpoint7_s == "cens", "Censored",
-  endpoint7_s == "gvhd", "GvHD", # instead of GvHD
-  endpoint7_s == "relapse", "Relapse",
-  endpoint7_s == "other_nrf", "Other failure" # instead of Other NRF
-)]
-dat_long_pre[, endpoint_lab := factor(
-  endpoint_lab, levels = c("Censored", "GvHD", "Relapse", "Other failure")
+dat_long_pre[, "endpoint_lab" := factor(
+  fcase(
+    endpoint7_s == "cens", "Censored",
+    endpoint7_s == "gvhd", "GvHD",
+    endpoint7_s == "relapse", "Relapse",
+    endpoint7_s == "other_nrf", "Other failure"
+  ),
+  levels = c("Censored", "GvHD", "Relapse", "Other failure")
 )]
 
-# Added fitted vals and slope
+# Added fitted values and slope for CD3 model
 dat_long_pre[, ':=' (
   curr_val_value = fitted(preDLI_JM_value_corr_CD3, type = "Subject"),
   curr_val_both = fitted(preDLI_JM_both_corr_CD3, type = "Subject"),
   slope = fitted_slopes_long(preDLI_JM_both_corr_CD3)
 )]
 
-# number of measurements
+# Number of repeated measurements p/ person
 ggplot(dat_wide_pre, aes(n_measurements)) +
   geom_histogram(bins = 13, col = "black", fill = "lightblue") +
-  labs(x = "# Repeated measurements per patient") +
-  theme_minimal(base_size = 14)
+  labs(x = "# Repeated measurements per patient")
 
-# For plotting: get tangent intercept, and then get coordinates
+  # For plotting of slope: get tangent intercept, and then get coordinates
 dat_long_pre[, int_tang := get_int_tangent(x = intSCT2_7, y = curr_val_value, slope = slope)]
 delta_tan <- 0.15 # Width of tangent arrow
 dat_long_pre[, ':=' (
@@ -82,53 +97,63 @@ dat_long_pre_last <- dat_long_pre[, .SD[.N], by = "IDAA"]
 set.seed(649846561)
 IDAA_subs_pre <- sample(levels(dat_long_pre$IDAA), replace = FALSE, size = 16)
 
+# Separate df for smoother trajectories
+newdat_indiv <- dat_long_pre[IDAA %in% IDAA_subs_pre, c(
+  "IDAA", "intSCT2_7", "ATG", "CMV_PD", "hirisk"
+)][, .(intSCT2_7 = seq(0, 6, by = 0.1)), by = c("IDAA", "ATG", "CMV_PD", "hirisk")]
+
+predict(
+  preDLI_JM_both_corr_CD3,
+  newdata = newdat_indiv,
+  type = "Subject",
+)
+
 # pre-DLI: raw + indiv fits -----------------------------------------------
+
 
 # First raw-plot
 p_raw_indiv_pre <- ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
-  #ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log)) +
-  geom_point(
-    size = 3.5, pch = 21,
-    alpha = 0.8,
-    col = "#359fda",
-    fill = colorspace::lighten("#359fda", amount = 0.3)
-  ) +
+  geom_point(size = 3.5, alpha = 0.8, col = colrs[[1]]) +
   geom_vline(aes(xintercept = endpoint7), linetype = "dashed") +
   facet_wrap(~ as.numeric(factor(IDAA))) +  # instead of IDAA to get 1:16
   labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
   scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+    breaks = log(c(1, 5, 25, 100, 500, 1500)),
+    labels = c(1, 5, 25, 100, 500, 1500)
   ) +
 
   # Label endpoint
   geom_label(
     data = dat_long_pre_last[IDAA %in% IDAA_subs_pre],
-    aes(x = endpoint7 + 0.25, y = log(2.5), label = endpoint_lab),
+    aes(x = endpoint7 + 0.05, y = log(2.5), label = endpoint_lab),
     #size = 5,
     hjust = 0,
     lineheight = .8,
-    inherit.aes = FALSE,
+    family = "Roboto Condensed",
     label.size = NA
   ) +
   geom_curve(
     data = dat_long_pre_last[IDAA %in% IDAA_subs_pre],
-    #data = data.frame(x = 2, y = 29, xend = 2.5, yend = 20),
-    mapping = aes(x = endpoint7 + 0.25, y = log(2.5), xend = endpoint7 + 0.025, yend = log(5)),
+    mapping = aes(
+      x = endpoint7 + 0.6,
+      y = log(5),
+      xend = endpoint7 + 0.05,
+      yend = log(10)
+    ),
     colour = "black",
     size = 0.75,
-    curvature = 0.2,
+    curvature = 0.3,
     arrow = arrow(length = unit(0.05, "npc"), type = "open"),
     inherit.aes = FALSE
   ) +
   coord_cartesian(xlim = c(0, 7.5))
 
 p_raw_indiv_pre
-ggsave("analysis/figures/preDLI_raw_indiv.png",dpi=300,width=12,height=8)
+ggsave("analysis/figures/preDLI_raw_indiv.png", dpi = 300, width = 12, height = 8)
 
 # Add individual fits
 p_raw_indiv_pre +
-  geom_line(aes(y = curr_val_value), size = 1, col = "darkblue")
+  geom_line(aes(y = curr_val_value), size = 1, col = colrs[[6]])
 ggsave("analysis/figures/preDLI_lines_indiv.png",dpi=300,width=12,height=8) # this is Figure 1
 
 
@@ -220,20 +245,6 @@ rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
 ggsave("analysis/figures/preDLI_trajectories.png",dpi=300,width=6,height=8) # this is Figure 2
 
 
-# NEW CMV FIGURE HERE: ----------------------------------------------------
-
-
-rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(hirisk, CMV_PD))) +
-  geom_line() +
-  #geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
-  #geom_line(aes(linetype = hirisk, col = CMV_PD), size = 1.5, alpha = 0.75) +
-  facet_grid(cell_line ~ ATG)
-
-# Pathetic for CMV
-summary(preDLI_JM_value_corr_CD4)
-summary(postDLI_JM_corr_CD4) # do it for post DLI
-
 # Summary of post DLI models ----------------------------------------------
 
 dat_wide_postDLI <- NMA_postDLI_datasets$wide
@@ -297,6 +308,40 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
   theme_bw()
   #geom_vline(xintercept = 3, linetype = "dotted")
 ggsave("analysis/figures/postDLI_trajectories.png",dpi=300,width=6,height=8) # this is FIgure 4
+
+
+# NEW CMV FIGURE HERE: ----------------------------------------------------
+
+
+rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
+  ggplot(aes(x = intDLI1, y = pred, group = CMV_PD, linetype = CMV_PD, col = CMV_PD)) +
+  geom_line(linewidth = 1.5) +
+  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
+  facet_grid(cell_line ~ ATG)+
+  labs(
+    x = "Time since DLI (months)", # was alloSCT
+    y = expression(paste("cell count (x10"^"6","/l)"))#,
+    #linetype = "ITT",
+    #col = "Donor type"
+  ) +
+  scale_y_continuous(
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
+  ) +
+  #theme_cowplot() +
+  theme_light(base_size = 14) +
+  coord_cartesian(xlim = c(0, 3), ylim = c(log(0.1), log(1500))) +
+  theme(
+    strip.background = element_rect(fill = "#7C7189", colour = "transparent"),
+    strip.text = element_text(colour = 'white')
+  )
+
+# Pathetic for CMV
+summary(preDLI_JM_value_corr_CD4)
+summary(postDLI_JM_corr_CD4) # do it for post DLI
+
+
+# Post DLI summaries ------------------------------------------------------
 
 
 # -- Model summaries
