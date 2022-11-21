@@ -5,6 +5,7 @@ source(here::here("packages.R"))
 # Global plots theme + settings
 colrs <- Manu::get_pal("Hoiho")
 confint_alpha <- 0.5
+confint_col <- "lightgray"
 global_font <- "Roboto Condensed"
 log_axis_scales <- scale_y_continuous(
   breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
@@ -85,21 +86,15 @@ IDAA_subs_pre <- sample(levels(dat_long_pre$IDAA), replace = FALSE, size = 16)
 
 
 # First raw-plot
-p_raw_indiv_pre <- ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
+ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
   geom_point(size = 3.5, alpha = 0.8, col = colrs[[1]]) +
   geom_vline(aes(xintercept = endpoint7), linetype = "dashed") +
   facet_wrap(~ as.numeric(factor(IDAA))) +  # instead of IDAA to get 1:16
   labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
-  ) +
-
-  # Label endpoint
+  log_axis_scales +
   geom_label(
     data = dat_long_pre_last[IDAA %in% IDAA_subs_pre],
     aes(x = endpoint7 + 0.05, y = log(2.5), label = endpoint_lab),
-    #size = 5,
     hjust = 0,
     lineheight = .8,
     family = "Roboto Condensed",
@@ -114,32 +109,30 @@ p_raw_indiv_pre <- ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, 
       yend = log(10)
     ),
     colour = "black",
-    size = 0.75,
+    linewidth = 0.75,
     curvature = 0.3,
     arrow = arrow(length = unit(0.05, "npc"), type = "open"),
     inherit.aes = FALSE
   ) +
-  coord_cartesian(xlim = c(0, 7.5))
+  coord_cartesian(xlim = c(0, 7.5)) +
+  geom_line(aes(y = curr_val_value), linewidth = 1, col = colrs[[6]]) # indivdual fits
 
-p_raw_indiv_pre
-ggsave("analysis/figures/preDLI_raw_indiv.png", dpi = 300, width = 12, height = 8)
-
-# Add individual fits
-p_raw_indiv_pre +
-  geom_line(aes(y = curr_val_value), size = 1, col = colrs[[6]])
-ggsave("analysis/figures/preDLI_lines_indiv.png",dpi=300,width=12,height=8) # this is Figure 1
-
+# Figure 1 (later to save as part of pipeline)
+ggsave(
+  here("analysis/figures/preDLI_lines_indiv.png"),
+  dpi = 300,
+  width = 12,
+  height = 8
+)
 
 # all pre-DLI trajectories per endpoint -----------------------------------
 
+
 # Do we exclude the censoring here?
-ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, group=IDAA)) +
+ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, group = IDAA)) +
   geom_line(show.legend = FALSE, size = 1, alpha = 0.5, col = colrs[[1]])+
   labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
-  ) +
+  log_axis_scales +
   geom_smooth(
     linewidth = 2,
     aes(group = endpoint_lab),
@@ -148,23 +141,20 @@ ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, group=IDAA)) +
     formula = y ~ x,
     col = colrs[[6]]
   ) +
-  facet_wrap(
-    ~ endpoint_lab,
-    labeller = as_labeller(
-      c(
-        "Censored" = "Censored",
-        "GvHD" = "GvHD",
-        "Relapse" = "Relapse",
-        "Other failure" = "Other failure"
-      )
-    )
-  ) +
+  facet_wrap(~ endpoint_lab) +
   coord_cartesian(ylim = log(c(0.1, 3000)))
 
-ggsave("analysis/figures/preDLI_perEndpoint.png",dpi=300,width=8,height=8) # this is Supplemental Figure 1
+# This is Supplemental Figure 1 (exclude or include the smooths?)
+ggsave(
+  here("analysis/figures/preDLI_perEndpoint.png"),
+  dpi = 300,
+  width = 8,
+  height = 8
+)
 
 
 # pre-DLI: marginal fit ---------------------------------------------------
+
 
 mod_names <- c(
   paste0("preDLI_JM_value_corr_CD", c(3, 4, 8)),
@@ -206,25 +196,28 @@ marg_preds_preDLI <- lapply(mods_preDLI_value, function(mod) {
 # Good plot with one -> use this one to make cmv plot..
 rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5, alpha = 0.75) +
-  # Add repel labels?
-  facet_grid(facets = cell_line ~ CMV_PD,
-             labeller = as_labeller(c("-/-"="CMV: -/-", "other P/D"="CMV: other",
-                                      "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
-                                      #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
-                                      ))) +
+  geom_ribbon(aes(ymin = low, ymax = upp), fill = confint_col, alpha = confint_alpha, col = NA) +
+  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
+  facet_grid(
+    facets = cell_line ~ CMV_PD,
+    labeller = as_labeller(
+      c(
+        "-/-" = "CMV: -/-",
+        "other P/D" = "CMV: other",
+        "CD3" = "CD3",
+        "CD4" = "CD4",
+        "CD8" = "CD8"
+      )
+    )
+  ) +
   labs(
     x = "Time since alloSCT (months)",
     y = expression(paste("cell count (x10"^"6","/l)")),
     linetype = "ITT",
     col = "Donor type"
   ) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) + # add a common ylim for all
+  log_axis_scales+
+  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) +
   scale_color_manual(
     labels = c("RD", "UD+ATG"),
     values = c("brown", "darkblue")
