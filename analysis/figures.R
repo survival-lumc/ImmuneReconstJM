@@ -1,29 +1,24 @@
 # Reproducing manuscript figures ------------------------------------------
 
+source(here::here("packages.R"))
 
-# (Packages will be loaded from separate file later)
-library(targets)
-library(dplyr)
-library(data.table)
-library(ggplot2)
-library(grid)
-library(ggforce) # need 0.3.4
-library(cowplot)
-library(JM)
-library(extrafont) # For Roboto condensed font (may need to install font on pc first)
-library(Manu) # For sweet NZ bird colours
-
-# Global palette
+# Global plots theme + settings
 colrs <- Manu::get_pal("Hoiho")
+confint_alpha <- 0.5
+global_font <- "Roboto Condensed"
+log_axis_scales <- scale_y_continuous(
+  breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+  labels = c(0.1, 1, 5, 25, 100, 500, 1500)
+)
 
-# Global plots theme
 theme_set(
-  theme_light(base_size = 14, base_family = "Roboto Condensed") +
+  theme_light(base_size = 14, base_family = global_font) +
     theme(
       strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
       strip.text = element_text(colour = 'white')
     )
 )
+
 
 # Load models/data
 tar_load(
@@ -50,7 +45,7 @@ tar_load(
   )
 )
 
-# Helper functions
+# Helper functions (won't need these once part of the pipeline)
 source("R/facet_zoom2.R")
 source("R/modelling-helpers.R")
 source("R/plotting-helpers.R")
@@ -60,6 +55,7 @@ source("R/summarising-helpers.R")
 dat_wide_pre <- NMA_preDLI_datasets$wide
 dat_long_pre <- NMA_preDLI_datasets$long
 
+# Label endpoints
 dat_long_pre[, "endpoint_lab" := factor(
   fcase(
     endpoint7_s == "cens", "Censored",
@@ -75,21 +71,6 @@ dat_long_pre[, ':=' (
   curr_val_value = fitted(preDLI_JM_value_corr_CD3, type = "Subject"),
   curr_val_both = fitted(preDLI_JM_both_corr_CD3, type = "Subject"),
   slope = fitted_slopes_long(preDLI_JM_both_corr_CD3)
-)]
-
-# Number of repeated measurements p/ person
-ggplot(dat_wide_pre, aes(n_measurements)) +
-  geom_histogram(bins = 13, col = "black", fill = "lightblue") +
-  labs(x = "# Repeated measurements per patient")
-
-  # For plotting of slope: get tangent intercept, and then get coordinates
-dat_long_pre[, int_tang := get_int_tangent(x = intSCT2_7, y = curr_val_value, slope = slope)]
-delta_tan <- 0.15 # Width of tangent arrow
-dat_long_pre[, ':=' (
-  start_x = intSCT2_7 - delta_tan,
-  start_y = int_tang + slope * (intSCT2_7 - delta_tan),
-  end_x = intSCT2_7 + delta_tan,
-  end_y = int_tang + slope * (intSCT2_7 + delta_tan)
 )]
 
 # Make a data with last measurement

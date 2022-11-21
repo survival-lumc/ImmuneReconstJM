@@ -401,4 +401,7 @@ list(
 
 # Manuscript figures
 
-...
+Add here targets for:
+
+- Statistical supplement rmd (with corresponding figures)
+- Manuscript figures rmd
