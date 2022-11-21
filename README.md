@@ -1,3 +1,3 @@
-# Immune reconstitution project
+# Joint models quantify associations between T-cell kinetics and allo-immunological events after allogeneic stem cell transplantation and subsequent donor lymphocyte infusion
 
-(Details to be added here)
+See [https://github.com/epiforecasts/eval-germany-sp-nowcasting](https://github.com/epiforecasts/eval-germany-sp-nowcasting) as example
