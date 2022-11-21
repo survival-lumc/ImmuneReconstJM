@@ -1,5 +1,7 @@
 # Reproducing manuscript figures ------------------------------------------
 
+# This will become a separate rmd file
+
 source(here::here("packages.R"))
 
 # Global plots theme + settings
@@ -128,19 +130,19 @@ ggsave(
 # all pre-DLI trajectories per endpoint -----------------------------------
 
 
-# Do we exclude the censoring here?
+# Do we exclude the censoring here? And maybe no smooth line?
 ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, group = IDAA)) +
-  geom_line(show.legend = FALSE, size = 1, alpha = 0.5, col = colrs[[1]])+
+  geom_line(show.legend = FALSE, linewidth = 1, alpha = 0.5, col = colrs[[6]]) +
   labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
   log_axis_scales +
-  geom_smooth(
-    linewidth = 2,
-    aes(group = endpoint_lab),
-    se = FALSE,
-    method = "loess",
-    formula = y ~ x,
-    col = colrs[[6]]
-  ) +
+  # geom_smooth(
+  #   linewidth = 2,
+  #   aes(group = endpoint_lab),
+  #   se = FALSE,
+  #   method = "loess",
+  #   formula = y ~ x,
+  #   col = colrs[[6]]
+  # ) +
   facet_wrap(~ endpoint_lab) +
   coord_cartesian(ylim = log(c(0.1, 3000)))
 
@@ -193,42 +195,6 @@ marg_preds_preDLI <- lapply(mods_preDLI_value, function(mod) {
   )
 })
 
-# Good plot with one -> use this one to make cmv plot..
-rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
-  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
-  geom_ribbon(aes(ymin = low, ymax = upp), fill = confint_col, alpha = confint_alpha, col = NA) +
-  geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
-  facet_grid(
-    facets = cell_line ~ CMV_PD,
-    labeller = as_labeller(
-      c(
-        "-/-" = "CMV: -/-",
-        "other P/D" = "CMV: other",
-        "CD3" = "CD3",
-        "CD4" = "CD4",
-        "CD8" = "CD8"
-      )
-    )
-  ) +
-  labs(
-    x = "Time since alloSCT (months)",
-    y = expression(paste("cell count (x10"^"6","/l)")),
-    linetype = "ITT",
-    col = "Donor type"
-  ) +
-  log_axis_scales+
-  coord_cartesian(xlim = c(0, 6), ylim = c(log(0.1), log(1500))) +
-  scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c("brown", "darkblue")
-  ) +
-  scale_linetype_manual(
-    labels = c("No", "Yes (high risk)"),
-    values = c("solid", "dotdash")
-  ) +
-  theme(legend.position = "bottom")
-#ggsave("analysis/figures/preDLI_trajectories.png",dpi=300,width=6,height=8) # this is Figure 2
-
 
 # Summary of post DLI models ----------------------------------------------
 
@@ -236,7 +202,7 @@ dat_wide_postDLI <- NMA_postDLI_datasets$wide
 dat_long_postDLI <- NMA_postDLI_datasets$long
 
 table(dat_wide_postDLI$sec_endpoint2_s)
-table(dat_wide_postDLI$sec_endpoint2_s, dat_wide_postDLI$ATG) # Silly to estimate effect of ATG?
+table(dat_wide_postDLI$sec_endpoint2_s, dat_wide_postDLI$ATG) # Silly to estimate effect of ATG
 
 newdat_postDLI <- expand.grid(
   "ATG" = levels(dat_long_postDLI$ATG),
@@ -265,66 +231,96 @@ marg_preds_postDLI <- lapply(mods_postDLI_value, function(mod) {
 # Good plot with one
 rbindlist(marg_preds_postDLI, idcol = "cell_line")[CMV_PD == "-/-"] |>
   ggplot(aes(x = intDLI1, y = pred, group = ATG)) + # was intDLI1 + 3
-  geom_ribbon(aes(ymin = low, ymax = upp), fill = "gray", alpha = 0.5, col = NA) +
-  geom_line(aes(col = ATG), size = 1.5, alpha = 0.75) +
-  # Add repel labels?
-  facet_grid(facets = cell_line ~ .
-             # labeller = as_labeller(c("-/-"="CMV: -/-", "other P/D"="CMV: other",
-             #                          "CD3"="CD3", "CD4"="CD4", "CD8"="CD8"
-             #                          #"CD3"="total T-cells", "CD4"="CD4+ T-cells", "CD8"="CD8+ T-cells"
-             #                          ))
-             ) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = confint_col,
+    alpha = confint_alpha,
+    col = NA
+  ) +
+  geom_line(aes(col = ATG, linetype = ATG), size = 1.5) +
+  facet_grid(cell_line ~ .) +
   labs(
-    x = "Time since DLI (months)", # was alloSCT
+    x = "Time since DLI (months)", #
     y = expression(paste("cell count (x10"^"6","/l)")),
-    #linetype = "ITT",
-    col = "Donor type"
+    col = "Donor type",
+    linetype = "Donor type"
   ) +
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
-  ) +
+  log_axis_scales +
   coord_cartesian(xlim = c(0, 3), ylim = c(log(0.1), log(1500))) + # xlim was c(0,6)
   scale_color_manual(
-    labels = c("RD", "UD+ATG"),
-    values = c(colrs[[1]], colrs[[2]])
+    labels = c("RD", "UD(+ATG)"),
+    values = c(colrs[[6]], colrs[[1]])
+  ) +
+  scale_linetype_manual(
+    labels = c("RD", "UD(+ATG)"),
+    values = c("dotdash", "solid")
   ) +
   theme(legend.position = "bottom")
-  #geom_vline(xintercept = 3, linetype = "dotted")
-ggsave("analysis/figures/postDLI_trajectories.png",dpi=300,width=6,height=8) # this is FIgure 4
+
+# Figure 4
+ggsave(
+  here("analysis/figures/postDLI_trajectories.png"),
+  dpi = 300,
+  width = 6,
+  height = 8
+)
 
 
 # NEW CMV FIGURE HERE: ----------------------------------------------------
 
 
+postDLI_last <- rbindlist(marg_preds_postDLI, idcol = "cell_line")[
+  order(intDLI1), .SD[.N], by = c("cell_line", "ATG", "CMV_PD")
+]#[ATG != "UD"]
+postDLI_last_wide <- dcast(postDLI_last, cell_line + ATG + intDLI1 ~ CMV_PD, value.var = "pred")
+
+
 rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
-  ggplot(aes(x = intDLI1, y = pred, group = CMV_PD, linetype = CMV_PD, col = CMV_PD)) +
-  geom_line(linewidth = 1.5) +
-  geom_ribbon(aes(ymin = low, ymax = upp), fill = "lightgray", alpha = 0.5, col = NA) +
+  ggplot(aes(x = intDLI1, y = pred)) +
+  geom_ribbon(aes(ymin = low, ymax = upp, group = CMV_PD), fill = confint_col, alpha = confint_alpha, col = NA) +
+  geom_line(aes(linetype = CMV_PD, col = CMV_PD, group = CMV_PD), linewidth = 1.5) +
   facet_grid(
     cell_line ~ ATG,
-    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)", "CD3" = "CD3",
-                             "CD4" = "CD4",
-                             "CD8" = "CD8"))
+    labeller = as_labeller(
+      c(
+        "UD" = "RD",
+        "UD(+ATG)" = "UD(+ATG)",
+        "CD3" = "CD3",
+        "CD4" = "CD4",
+        "CD8" = "CD8"
+      )
+    )
   ) +
   labs(
-    x = "Time since DLI (months)", # was alloSCT
-    y = expression(paste("cell count (x10"^"6","/l)"))#,
-    #linetype = "ITT",
-    #col = "Donor type"
+    x = "Time since DLI (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    col = "CMV patient/donor",
+    linetype = "CMV patient/donor"
   ) +
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
-  ) +
+  log_axis_scales +
   scale_color_manual(
-    labels = c("-/-", "other P/D"),
-    values = c(colrs[[1]], colrs[[2]])
+    labels = c("-/-", "Other"),
+    values = c(colrs[[1]], colrs[[6]])
+  ) +
+  scale_linetype_manual(
+    labels = c("-/-", "Other"),
+    values = c("solid", "dotdash")
   ) +
   guides(colour = guide_legend(reverse = TRUE), linetype = guide_legend(reverse = TRUE)) +
-  #theme_cowplot() +
-  #theme_light(base_size = 14) +
-  coord_cartesian(xlim = c(0, 3), ylim = c(log(0.1), log(1500)))
+  coord_cartesian(xlim = c(0, 3.25), ylim = c(log(0.1), log(1500))) +
+  geom_segment(
+    data = postDLI_last_wide,
+    aes(y = `-/-`, yend = `other P/D`, x = intDLI1 + 0.1, xend = intDLI1 + 0.1),
+    linewidth = 0.75,
+    arrow = arrow(length = unit(0.025, "npc"), type = "open")
+  )
+
+ggsave(
+  here("analysis/figures/postDLI_CMV.png"),
+  dpi = 300,
+  width = 8,
+  height = 8
+)
 
 # Pathetic for CMV
 summary(preDLI_JM_value_corr_CD4)
@@ -335,31 +331,15 @@ summary(postDLI_JM_corr_CD4) # do it for post DLI
 
 
 # -- Model summaries
-ggplot(dat_wide_postDLI, aes(n_measurements)) +
-  geom_histogram(bins = 13, col = "black", fill = "lightblue") +
-  labs(x = "# Repeated measurements per patient")
 
 dat_long_postDLI[, "endpoint_lab" := fcase(
   sec_endpoint2_s == "cens", "Censored",
   sec_endpoint2_s == "gvhd", "GvHD",
-  sec_endpoint2_s == "rel_nrf", "Relapse or other failure"
+  sec_endpoint2_s == "rel_nrf", "Relapse or\nother failure"
 )]
 
 # Added fitted vals and slope
-dat_long_postDLI[, ':=' (
-  curr_val = fitted(postDLI_JM_corr_CD3, type = "Subject")
-)]
-
-# For plotting: get tangent intercept, and then get coordinates
-dat_long_postDLI$intSCT2_7_reset=dat_long_postDLI$intSCT2_7-dat_long_postDLI$uDLI_actual
-dat_long_postDLI[, int_tang := get_int_tangent(x = intSCT2_7_reset, y = curr_val, slope = 1)]#slope
-delta_tan <- 0.3 # Width of tangent arrow
-dat_long_postDLI[, ':=' (
-  start_x = intSCT2_7_reset - delta_tan,
-  start_y = int_tang  * (intSCT2_7_reset - delta_tan), # + slope
-  end_x = intSCT2_7_reset + delta_tan,
-  end_y = int_tang  * (intSCT2_7_reset + delta_tan) # + slope
-)]
+dat_long_postDLI[, curr_val := fitted(postDLI_JM_corr_CD3, type = "Subject")]
 
 # Make a data with last measurement
 dat_long_post_last <- dat_long_postDLI[, .SD[.N], by = "IDAA"]
@@ -371,137 +351,82 @@ IDAA_subs_post <- sample(levels(dat_long_postDLI$IDAA), replace = FALSE, size = 
 # compare pre and post
 any(duplicated(c(IDAA_subs_pre,IDAA_subs_post))) # no -> use numbers 17:32
 
+dat_long_postDLI_subs <- copy(dat_long_postDLI[IDAA %in% IDAA_subs_post])
+dat_long_postDLI_subs[, IDAA := as.numeric(droplevels(dat_long_postDLI_subs$IDAA)) + 16]
+
+
 ggplot(
-  dat_long_postDLI[IDAA %in% IDAA_subs_post],
-  aes(intSCT2_7_reset, CD3_abs_log)
+  dat_long_postDLI_subs,
+  aes(intDLI1, CD3_abs_log, group = IDAA)
 ) +
-  geom_point(
-    size = 3.5,
-    pch = 21,
-    alpha = 0.8,
-    col = "#359fda",
-    fill = colorspace::lighten("#359fda", amount = 0.3)
-  ) +
+  geom_point(size = 3.5, alpha = 0.8, col = colrs[[1]]) +
   labs(x = "Time since DLI (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
+  log_axis_scales +
+  # For person with single measurement
+  geom_point(
+    data = dat_long_postDLI_subs[IDAA %in% dat_long_postDLI_subs[, .I[.N == 1], by = IDAA]$IDAA],
+    col = colrs[[6]],
+    size = 1
   ) +
-  facet_wrap(~ (as.numeric(factor(IDAA))+16)) +  # instead of IDAA to get 17:32
+  facet_wrap(~ IDAA) +
+  #facet_wrap(~ (as.numeric(factor(IDAA)) + 16)) +  # instead of IDAA to get 17:32
   coord_cartesian(ylim = c(0, 8), xlim = c(0, 4.5)) +
-  geom_line(aes(y = curr_val), size = 1, col = "darkblue")+
-  # endpoint
+  geom_line(aes(y = curr_val), linewidth = 1, col = colrs[[6]]) +
   geom_vline(aes(xintercept = sec_endpoint2), linetype = "dashed") +
-  # Label endpoint
   geom_label(
-    data = dat_long_postDLI[IDAA %in% IDAA_subs_post],
-    aes(x = sec_endpoint2 + 0.25, y = log(2.5), label = gsub("Event-free", "Censored",endpoint_lab)),
-    #size = 5,
+    aes(x = sec_endpoint2 + 0.1, y = log(2.5), label = gsub("Event-free", "Censored", endpoint_lab)),
     hjust = 0,
     lineheight = .8,
-    inherit.aes = FALSE,
+    family = "Roboto Condensed",
     label.size = NA
   ) +
   geom_curve(
-    data = dat_long_postDLI[IDAA %in% IDAA_subs_post],
-    #data = data.frame(x = 2, y = 29, xend = 2.5, yend = 20),
-    mapping = aes(x = sec_endpoint2 + 0.25, y = log(2.5), xend = sec_endpoint2 + 0.025, yend = log(5)),
+    mapping = aes(
+      x = sec_endpoint2 + 0.5,
+      y = log(6),
+      xend = sec_endpoint2 + 0.025,
+      yend = log(12.5)
+    ),
     colour = "black",
-    size = 0.75,
-    curvature = 0.2,
+    linewidth = 0.75,
+    curvature = 0.3,
     arrow = arrow(length = unit(0.05, "npc"), type = "open"),
     inherit.aes = FALSE
   )
-ggsave("analysis/figures/postDLI_lines_indiv.png",dpi=300,width=12,height=8) # this is Supplemental Figure 2
 
-# all pre-DLI trajectories per endpoint -----------------------------------
-ggplot(dat_long_postDLI, aes(intSCT2_7_reset, CD3_abs_log, group=IDAA)) + # CD3_abs_log instead of curr_val to get raw values
-  geom_line(show.legend = FALSE)+
-  geom_point(data=dat_long_postDLI[!dat_long_postDLI$IDAA%in%dat_long_postDLI$IDAA[duplicated(dat_long_postDLI$IDAA)],],
-             show.legend = FALSE, size = 0.5)+ # add dots for those with only one measurement
+#Supplemental Figure 2
+ggsave(
+  here("analysis/figures/postDLI_lines_indiv.png"),
+  dpi = 300,
+  width = 12,
+  height = 8
+)
+
+# all post-DLI trajectories per endpoint -----------------------------------
+
+
+# Ski the smoothing altogether?
+ggplot(dat_long_postDLI, aes(intDLI1, CD3_abs_log, group=IDAA)) +
+  geom_line(show.legend = FALSE, size = 1, alpha = 0.5, col = colrs[[6]]) +
+  geom_point(
+    data = dat_long_postDLI[!dat_long_postDLI$IDAA %in% dat_long_postDLI$IDAA[duplicated(dat_long_postDLI$IDAA)], ],
+    show.legend = FALSE, size = 1, col = colrs[[6]]
+  ) + # add dots for those with only one measurement
   labs(x = "Time since DLI (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
-  scale_y_continuous(
-    breaks = log(c(5, 25, 100, 500, 1500)),
-    labels = c(5, 25, 100, 500, 1500)
-  ) +
-  facet_wrap(~endpoint_lab)
-ggsave("analysis/figures/postDLI_perEndpoint.png",dpi=300,width=8,height=8) # this is Supplemental Figure 3
+  log_axis_scales +
+  facet_wrap(~ endpoint_lab)
+
+# Supplemental Figure 3
+ggsave(
+  here("analysis/figures/postDLI_perEndpoint.png"),
+  dpi = 300,
+  width = 8,
+  height = 8
+) #
 
 
 # forest plots ----------------------------------------------------------
 ## to be updated
-
-res <- rbind(
-  data.table(
-    summary(preDLI_JM_both_corr_CD3)$`CoefTable-Event`, "cell_line" = "CD3",
-    keep.rownames = TRUE
-  ),
-  data.table(
-    summary(preDLI_JM_both_corr_CD4)$`CoefTable-Event`, "cell_line" = "CD4",
-    keep.rownames = TRUE
-  ),
-  data.table(
-    summary(preDLI_JM_both_corr_CD8)$`CoefTable-Event`, "cell_line" = "CD8",
-    keep.rownames = TRUE
-  )
-)
-
-res <- res[grep(x = rn, pattern = "^bs", invert = TRUE)]
-setnames(res, old = "rn", new = "param")
-res[, param := factor(
-  param,
-  levels = c(
-    "ATG.1", "hirisk.1", "Assoct:strata(trans)trans=1", "Assoct.s:strata(trans)trans=1",
-    "ATG.2", "hirisk.2", "Assoct:strata(trans)trans=2", "Assoct.s:strata(trans)trans=2",
-    "ATG.3", "Assoct:strata(trans)trans=3", "Assoct.s:strata(trans)trans=3"
-  )
-)]
-res[, param_label := factor(
-  param, labels = c(
-    "ATG", "hirisk", "Value", "Slope",
-    "ATG", "hirisk", "Value", "Slope",
-    "ATG", "Value", "Slope"
-  )
-)]
-setorder(res, cell_line, param)
-res
-res[, ':=' (
-  HR = exp(Value),
-  low = exp(Value - qnorm(0.975) * Std.Err),
-  upp = exp(Value + qnorm(0.975) * Std.Err)
-)]
-
-
-# Try basic one
-ggplot(data = res, aes(x = param, y = HR)) +
-  geom_linerange(
-    aes(
-      ymin = low,
-      ymax = upp,
-      xmin = param,
-      xmax = param,
-      col = cell_line
-    ),
-    position = position_dodge(width = 0.75),
-    size = 0.5,
-    na.rm = TRUE
-  ) +
-  ggplot2::scale_y_continuous(
-    name = "Hazard ratio (95% CI)",
-    trans = "log",
-    breaks = c(0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8, 15, 25),
-  ) +
-  ggplot2::scale_x_discrete(limits = rev) +
-  geom_point(
-    aes(col = cell_line, shape = cell_line),
-    position = position_dodge(width = 0.75),
-    size = 1.25,
-    na.rm = TRUE
-  ) +
-  guides(col = guide_legend(reverse = TRUE), shape = guide_legend(reverse = TRUE)) +
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = "dotted") +
-  theme_bw()
 
 
 ####
@@ -546,40 +471,9 @@ res2[, ':=' (
 )]
 
 
-# Try basic one
-ggplot(data = res2, aes(x = param, y = HR)) +
-  geom_linerange(
-    aes(
-      ymin = low,
-      ymax = upp,
-      xmin = param,
-      xmax = param,
-      col = cell_line
-    ),
-    position = position_dodge(width = 0.75),
-    size = 0.5,
-    na.rm = TRUE
-  ) +
-  ggplot2::scale_y_continuous(
-    name = "Hazard ratio (95% CI)",
-    trans = "log",
-    breaks = c(0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8, 15, 25),
-  ) +
-  ggplot2::scale_x_discrete(limits = rev) +
-  geom_point(
-    aes(col = cell_line, shape = cell_line),
-    position = position_dodge(width = 0.75),
-    size = 1.25,
-    na.rm = TRUE
-  ) +
-  guides(col = guide_legend(reverse = TRUE), shape = guide_legend(reverse = TRUE)) +
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = "dotted") +
-  theme_bw()
-ggsave("analysis/figures/forest_preDLI.png",dpi=300,width=8,height=8) # this is Figure 3
+#ggsave("analysis/figures/forest_preDLI.png",dpi=300,width=8,height=8) # this is Figure 3
 
 ### tryout by Eva
-library(dplyr)
 res2.2<-res2%>%
   mutate(
     endpoint=factor(
@@ -613,35 +507,49 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
     na.rm = TRUE,
     show.legend = F
   ) +
-  geom_hline(alpha=0,aes(col=subset,yintercept=1),size=1.1)+
-  geom_text(aes(x=,param2,label=label,group=subset,hjust=ifelse(HR>=1,0,1)),
-            position = position_dodge(width = 0.8),size=3,color="black")+ #grey40
+  geom_hline(alpha = 0, aes(col = subset, yintercept = 1),size = 1.1)+
+  geom_text(
+    aes(x = param2, label = label, group = subset, hjust = ifelse(HR >= 1, 0, 1)),
+    position = position_dodge(width = 0.8), size = 3, color = "black", family = "Roboto Condensed"
+  )+ #grey40
   ggplot2::scale_y_continuous(
     name = "Hazard ratio (95% CI)",
     trans = "log",
     breaks = c(0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8, 15, 25),
   ) +
-  ggplot2::scale_x_discrete(limits = rev, expand=expansion(add=0.5)) +
+  ggplot2::scale_x_discrete(limits = rev, expand=expansion(add = 0.5)) +
   geom_point(
     aes(col = subset, shape = subset),
     position = position_dodge(width = 0.8),
     size = 3,
     na.rm = TRUE
   ) +
-  guides(col = guide_legend(reverse = TRUE,override.aes = list(alpha=1)),
-         shape = guide_legend(reverse = TRUE)) +
+  guides(
+    col = guide_legend(reverse = TRUE, override.aes = list(alpha = 1)),
+    shape = guide_legend(reverse = TRUE)
+  ) +
   coord_flip() +
   geom_hline(yintercept = 1, linetype = "dotted") +
-  theme_bw()+
   #facet_wrap(~endpoint,scales = "free_y",ncol=1, strip.position = "right")+
-  facet_grid(rows="endpoint",scales="free",space="free")+
-  theme(axis.title.y = element_blank(), panel.spacing = unit(0,"cm"),
-        axis.text=element_text(color="black",size=11),
-        legend.text = element_text(size=11),legend.title=element_text(size=11),
-        axis.title = element_text(size=12), strip.text = element_text(size=11),
-        panel.grid.major.y=element_blank()) +
-  scale_color_brewer(palette = "Dark2")
-ggsave("analysis/figures/preDLI_forest.png",dpi=300,width=10,height=8)
+  facet_grid(rows = "endpoint", scales = "free", space = "free")+
+  theme(
+    axis.title.y = element_blank(),
+    panel.spacing = unit(0.05, "cm"),
+    axis.text = element_text(color = "black", size = 11),
+    legend.text = element_text(size = 11), legend.title = element_text(size = 11),
+    axis.title = element_text(size = 12), strip.text = element_text(size = 11),
+    panel.grid.major.y = element_blank()
+  ) +
+  scale_color_manual(
+    values = c(colrs[[1]], colrs[[6]], colrs[[4]])
+  )
+
+ggsave(
+  here("analysis/figures/preDLI_forest.png"),
+  dpi = 300,
+  width = 10,
+  height = 8
+)
 
 
 #### postDLI
@@ -684,37 +592,7 @@ res3[, ':=' (
 )]
 
 
-# Try basic one
-ggplot(data = res3, aes(x = param, y = HR)) +
-  geom_linerange(
-    aes(
-      ymin = low,
-      ymax = upp,
-      xmin = param,
-      xmax = param,
-      col = cell_line
-    ),
-    position = position_dodge(width = 0.75),
-    size = 0.5,
-    na.rm = TRUE
-  ) +
-  ggplot2::scale_y_continuous(
-    name = "Hazard ratio (95% CI)",
-    trans = "log",
-    breaks = c(0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8, 15, 25,50,100,150),
-  ) +
-  ggplot2::scale_x_discrete(limits = rev) +
-  geom_point(
-    aes(col = cell_line, shape = cell_line),
-    position = position_dodge(width = 0.75),
-    size = 1.25,
-    na.rm = TRUE
-  ) +
-  guides(col = guide_legend(reverse = TRUE), shape = guide_legend(reverse = TRUE)) +
-  coord_flip() +
-  geom_hline(yintercept = 1, linetype = "dotted") +
-  theme_bw()
-ggsave("analysis/figures/forest_postDLI.png",dpi=300,width=8,height=8) # this is Figure 5
+#ggsave("analysis/figures/forest_postDLI.png",dpi=300,width=8,height=8) # this is Figure 5
 
 
 ### tryout by Eva
@@ -734,7 +612,7 @@ res3.2<-res3%>%
 res3.2
 
 ggplot(data = res3.2, aes(x = param2, y = HR)) +
-  geom_vline(xintercept=c(1.5,2.5),color="grey92",size=0.5)+
+  geom_vline(xintercept = c(1.5, 2.5), color = "grey92", size = 0.5)+
   geom_linerange(
     aes(
       ymin = low,
@@ -748,14 +626,15 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
     na.rm = TRUE,
     show.legend = F
   ) +
-  geom_hline(alpha=0,aes(col=subset,yintercept=1),size=1.1)+
-  geom_text(aes(x=,param2,label=label,group=subset,hjust=ifelse(HR>=1,0,1)),
-            position = position_dodge(width = 0.8),size=3,color="black")+ #grey40
+  geom_hline(alpha = 0, aes(col = subset, yintercept = 1), size = 1.1)+
+  geom_text(aes(x = param2,label = label, group = subset, hjust = ifelse(HR >= 1, 0, 1)),
+            position = position_dodge(width = 0.8), size = 3, color = "black",
+            family = "Roboto Condensed")+ #grey40
   ggplot2::scale_y_continuous(
     name = "Hazard ratio (95% CI)",
     trans = "log",
     breaks = c(0.05, 0.1, 0.25, 0.5, 1, 2, 4, 8, 15, 25,50,100,150),
-    labels=c(0.05, "0.10", 0.25, "0.50", "1.00", "2.00", "4.00", "8.00", 15, 25,50,100,150)
+    labels= c(0.05, "0.10", 0.25, "0.50", "1.00", "2.00", "4.00", "8.00", 15, 25, 50, 100, 150)
   ) +
   ggplot2::scale_x_discrete(limits = rev, expand=expansion(add=0.5)) +
   geom_point(
@@ -764,22 +643,32 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
     size = 3,
     na.rm = TRUE
   ) +
-  guides(col = guide_legend(reverse = TRUE,override.aes = list(alpha=1)),
-         shape = guide_legend(reverse = TRUE)) +
+  guides(
+    col = guide_legend(reverse = TRUE,override.aes = list(alpha = 1)),
+    shape = guide_legend(reverse = TRUE)
+  ) +
   coord_flip() +
   geom_hline(yintercept = 1, linetype = "dotted") +
-  theme_bw()+
   #facet_wrap(~endpoint,scales = "free_y",ncol=1, strip.position = "right")+
-  facet_grid(rows="endpoint",scales="free",space="free")+
-  theme(axis.title.y = element_blank(), panel.spacing = unit(0,"cm"),
-        axis.text=element_text(color="black",size=11),
-        legend.text = element_text(size=11),legend.title=element_text(size=11),
-        axis.title = element_text(size=12), strip.text = element_text(size=11),
-        panel.grid.major.y=element_blank(),plot.margin=margin(l=0)) +
-  scale_color_brewer(palette = "Dark2")
-ggsave("analysis/figures/postDLI_forest.png",dpi=300,height=6,width=11)
+  facet_grid(rows = "endpoint",scales = "free",space = "free")+
+  theme(
+    axis.title.y = element_blank(),
+    panel.spacing = unit(0.05,"cm"),
+    axis.text = element_text(color="black", size=11),
+    legend.text = element_text(size = 11),legend.title=element_text(size = 11),
+    axis.title = element_text(size = 12), strip.text = element_text(size = 11),
+    panel.grid.major.y = element_blank(), plot.margin = margin(l=0)
+  ) +
+  scale_color_manual(
+    values = c(colrs[[1]], colrs[[6]], colrs[[4]])
+  )
 
-
+ggsave(
+  here("analysis/figures/postDLI_forest.png"),
+  dpi = 300,
+  height = 6,
+  width = 11
+)
 
 # Facet zoom customed -----------------------------------------------------
 
@@ -793,10 +682,10 @@ CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
   geom_ribbon(
     aes(ymin = low, ymax = upp),
-    fill = "lightgray",
-    alpha = 0.5,
+    fill = confint_col,
+    alpha = confint_alpha,
     col = NA
-  ) +
+  )+
   geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
   labs(
     x = "Time since alloSCT (months)",
@@ -804,14 +693,7 @@ CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
     linetype = "ITT",
     col = "Donor type"
   ) +
- # coord_cartesian(ylim = c(log()))
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)#,
-    #limits = c(log(0.5), log(500))
-  ) +
-  #coord_fixed()
-  #coord_cartesian(ylim = c(log(0.5), log(500))) +
+  log_axis_scales +
   geom_rect(
     xmin = zoom_areas$CD4$x[1],
     xmax = zoom_areas$CD4$x[2],
@@ -822,8 +704,12 @@ CD4_sub <- data.table(marg_preds_preDLI$CD4)[CMV_PD == "-/-"] |>
     fill = NA
   ) +
   scale_color_manual(
-    labels = c("-/-", "other P/D"),
-    values = c(colrs[[2]], colrs[[1]])
+    labels = c("RD", "UD(+ATG)"),
+    values = c(colrs[[6]], colrs[[1]])
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes"),
+    values = c("solid", "dotdash")
   ) +
   facet_zoom2(
     xlim = zoom_areas$CD4$x,
@@ -837,8 +723,8 @@ CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
   geom_ribbon(
     aes(ymin = low, ymax = upp),
-    fill = "lightgray",
-    alpha = 0.75,
+    fill = confint_col,
+    alpha = confint_alpha,
     col = NA
   ) +
   geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
@@ -857,16 +743,21 @@ CD8_sub <- data.table(marg_preds_preDLI$CD8)[CMV_PD == "-/-"] |>
     linetype = "dashed",
     fill = NA
   ) +
+  scale_color_manual(
+    labels = c("RD", "UD(+ATG)"),
+    values = c(colrs[[6]], colrs[[1]])
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes"),
+    values = c("solid", "dotdash")
+  ) +
   facet_zoom2(
     xlim = zoom_areas$CD8$x,
     ylim = zoom_areas$CD8$y,
     show.area = FALSE,
     zoom.size = 1L
   ) +
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
-  ) +
+  log_axis_scales +
   theme(axis.title.x = element_blank())
 
 #CD8_sub
@@ -877,8 +768,8 @@ CD3_sub <- data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
   ggplot(aes(x = intSCT2_7, y = pred, group = interaction(ATG, hirisk))) +
   geom_ribbon(
     aes(ymin = low, ymax = upp),
-    fill = "lightgray",
-    alpha = 0.75,
+    fill = confint_col,
+    alpha = confint_alpha,
     col = NA
   ) +
   geom_line(aes(linetype = hirisk, col = ATG), size = 1.5) +
@@ -887,6 +778,14 @@ CD3_sub <- data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
     y = expression(paste("CD3 cell count (x10"^"6","/l)")),
     linetype = "ITT",
     col = "Donor type"
+  ) +
+  scale_color_manual(
+    labels = c("RD", "UD(+ATG)"),
+    values = c(colrs[[6]], colrs[[1]])
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes"),
+    values = c("solid", "dotdash")
   ) +
   geom_rect(
     xmin = zoom_areas$CD3$x[1],
@@ -903,10 +802,7 @@ CD3_sub <- data.table(marg_preds_preDLI$CD3)[CMV_PD == "-/-"] |>
     show.area = FALSE,
     zoom.size = 1L
   ) +
-  scale_y_continuous(
-    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
-    labels = c(0.1, 1, 5, 25, 100, 500, 1500)
-  ) +
+  log_axis_scales +
   theme(axis.title.x = element_blank())
 
 remove_zoom_rectangle <- function(p) {
@@ -916,60 +812,31 @@ remove_zoom_rectangle <- function(p) {
   ggplotify::as.ggplot(pg)
 }
 
-legend_b <- get_legend(CD4_sub + theme(legend.position = "top") +
-                         scale_colour_discrete(labels = c("RD", "UD(+ATG)")) +
-                         scale_linetype_discrete("Risk group",
-                                                 labels = c("Non-high risk", "High risk"))
-                         )
+legend_b <- get_legend(
+  CD4_sub +
+    theme(legend.position = "top") +
+    scale_linetype_discrete("Risk group", labels = c("Non-high risk", "High risk"))
+)
 
 prow <- plot_grid(
-  remove_zoom_rectangle(CD3_sub + theme(legend.position="none")),
-  remove_zoom_rectangle(CD4_sub + theme(legend.position="none")),
-  remove_zoom_rectangle(CD8_sub + theme(legend.position="none")),
-  #align = 'vh',
-  #labels = c("A", "B", "C"),
-  #hjust = -1,
+  remove_zoom_rectangle(CD3_sub + theme(legend.position = "none")),
+  remove_zoom_rectangle(CD4_sub + theme(legend.position = "none")),
+  remove_zoom_rectangle(CD8_sub + theme(legend.position = "none")),
   nrow = 3
 )
-prow_leg <- plot_grid(
-  legend_b, prow, ncol = 1, rel_heights = c(.1, 1)
-)
+prow_leg <- plot_grid(legend_b, prow, ncol = 1, rel_heights = c(.1, 1))
 
 final <- ggpubr::annotate_figure(
   prow_leg,
-  bottom = ggpubr::text_grob("Time since alloSCT (months)",
-                             hjust = 0.5)#, size = 10)
-)
-
-final
-class(final)
-
-#pdf(file = "figures/marginals-zoomed.pdf", width = 6, height = 8)
-#final
-#dev.off()
-ggsave(
-  "./analysis/figures/marginals-zoomed.png",
-  plot = final,
-  width = 6,
-  height = 8,
-  units = "in",
-  bg = "transparent"
+  bottom = ggpubr::text_grob("Time since alloSCT (months)", hjust = 0.5)
 )
 
 
 png(
-  filename = "./analysis/figures/marginals-zoomed.png",
+  filename = here("./analysis/figures/marginals-zoomed.png"),
   width = 6, height = 8,
   units = "in", res = 300
 )
 final
 dev.off()
-#gridExtra::grid.arrange(
-#  CD4_sub, CD3_sub, CD8_sub
-#)
 
-
-# New facet zoom, mirrored.. ----------------------------------------------
-
-
-# Stack link here:
