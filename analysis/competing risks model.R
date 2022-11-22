@@ -65,7 +65,6 @@ legend(
   legend = c("Non-high risk", "High risk"),
   col = c(colrs[[6]], colrs[[5]]),
   title = "",
-  #text.font = "Roboto Condensed", # try this??
   lty = 1,
   lwd = 2,
   inset = c(0.05, 0)

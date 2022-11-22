@@ -834,7 +834,7 @@ final <- ggpubr::annotate_figure(
 
 png(
   filename = here("./analysis/figures/marginals-zoomed.png"),
-  width = 6, height = 8,
+  width = 6.5, height = 8,
   units = "in", res = 300
 )
 final
