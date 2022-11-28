@@ -18,6 +18,8 @@ header-includes:
   - \raggedbottom
 editor_options: 
   chunk_output_type: console
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -53,24 +55,58 @@ tar_load(
 )
 ```
 
-The present supplementary material is a `Statistical Supplement' to the main article, outlining the methods used and the motivation behind them.
+The present supplementary material is a \`Statistical Supplement' to the
+main article, outlining the methods used and the motivation behind them.
 
 # Overview
 
-The main article seeked to investigate the impact of early low-dose donor lymphocyte infusion (DLI) on the T-cell kinetics and the association between these kinetics and the development of clinical events. The data at hand are comprised of
+The main article seeked to investigate the impact of early low-dose
+donor lymphocyte infusion (DLI) on the T-cell kinetics and the
+association between these kinetics and the development of clinical
+events. The data at hand are comprised of
 
-- Baseline patient characteristics.
-- Absolute T-cell counts measured routinely at discrete timepoints (not exactly the same times across patients) starting from time of allogeneic stem cell transplantation (alloSCT).
-- Time of standard prophylactic DLI, and time of early low dose DLI (if given).
-- Time to various clinical events occurring during follow-up, such as start of therapeutic immunosuppression Graft-versus-Host-Disease (GvHD) or relapse of the underlying disease.
+-   Baseline patient characteristics.
+-   Absolute T-cell counts measured routinely at discrete timepoints
+    (not exactly the same times across patients) starting from time of
+    allogeneic stem cell transplantation (alloSCT).
+-   Time of standard prophylactic DLI, and time of early low dose DLI
+    (if given).
+-   Time to various clinical events occurring during follow-up, such as
+    start of therapeutic immunosuppression Graft-versus-Host-Disease
+    (GvHD) or relapse of the underlying disease.
 
-Note that the data components outlined above are inextricably interlinked. For example, a patient dying or dropping out of a study clearly precludes any further T-cell measurements from being collected. In other words, the T-cell counts that would have been measured in the absence of death or drop-out are *missing*. The suspected reason(s) behind this missingness is a key consideration behind the choice of analysis approach: the occurrence of death could be related to observed (e.g. baseline covariates, measured T-cell counts) or unobserved (e.g. latent characteristics of the T-cell counts, such as rate of increase at a point in time) information [@rouanetInterpretationMixedModels2019].
+Note that the data components outlined above are inextricably
+interlinked. For example, a patient dying or dropping out of a study
+clearly precludes any further T-cell measurements from being collected.
+In other words, the T-cell counts that would have been measured in the
+absence of death or drop-out are *missing*. The suspected reason(s)
+behind this missingness is a key consideration behind the choice of
+analysis approach: the occurrence of death could be related to observed
+(e.g. baseline covariates, measured T-cell counts) or unobserved (e.g.
+latent characteristics of the T-cell counts, such as rate of increase at
+a point in time) information [@rouanetInterpretationMixedModels2019].
 
-While death and drop-out are well-known drivers of cohort attrition, for modelling purposes the longitudinal measurements may also be `artificially terminated' at the occurrence of some clinical event of interest (e.g. GvHD in the present context) after which the patient may in reality remain in follow-up afterwards. While it may be clear why we should do this when modelling the association between a longitudinal marker and a time-to-event outcome (future measurements cannot help predict past events), it is also an important consideration for the trajectory of the marker itself: the population of interest evolves over time, and the clinical event may influence the trajectories themselves.
+While death and drop-out are well-known drivers of cohort attrition, for
+modelling purposes the longitudinal measurements may also be
+\`artificially terminated' at the occurrence of some clinical event of
+interest (e.g. GvHD in the present context) after which the patient may
+in reality remain in follow-up afterwards. While it may be clear why we
+should do this when modelling the association between a longitudinal
+marker and a time-to-event outcome (future measurements cannot help
+predict past events), it is also an important consideration for the
+trajectory of the marker itself: the population of interest evolves over
+time, and the clinical event may influence the trajectories themselves.
 
 ## Modelling the impact of early low-dose DLI on T-cell kinetics
 
-In the main article, we performed an intention-to-treat (ITT) analysis, comparing baseline disease risk groups on the basis of which early low-dose DLIs were scheduled. A first avenue for assessing the impact of early low-dose DLI on T-cell kinetics would be simple descriptive analysis: for example, selecting a number of timepoints or intervals and thereafter visualizing the distribution and average of the T-cell counts per ITT group. The plot below shows a possible analysis for the CD4 counts.
+In the main article, we performed an intention-to-treat (ITT) analysis,
+comparing baseline disease risk groups on the basis of which early
+low-dose DLIs were scheduled. A first avenue for assessing the impact of
+early low-dose DLI on T-cell kinetics would be simple descriptive
+analysis: for example, selecting a number of timepoints or intervals and
+thereafter visualizing the distribution and average of the T-cell counts
+per ITT group. The plot below shows a possible analysis for the CD4
+counts.
 
 ```{r descrip, eval=TRUE, fig.cap = "Descriptive analysis", fig.pos="H",fig.height=4}
 dat_long <- NMA_preDLI_datasets$long
@@ -141,7 +177,13 @@ dat_long |>
   theme(legend.position = "top")
 ```
 
-Since conclusions based on a descriptive analysis may depend on the chosen time intervals and number of measurements per interval, we may instead choose to smooth across the individual trajectories using a (flexible) linear model (Figure S2). This however does not take into account individual heterogeneity in trajectories. Figure S3 looks at the average and fitted individual trajectories obtained with the linear mixed effects model.
+Since conclusions based on a descriptive analysis may depend on the
+chosen time intervals and number of measurements per interval, we may
+instead choose to smooth across the individual trajectories using a
+(flexible) linear model (Figure S2). This however does not take into
+account individual heterogeneity in trajectories. Figure S3 looks at the
+average and fitted individual trajectories obtained with the linear
+mixed effects model.
 
 ```{r mixed-mod, fig.cap="Analysis using a linear mixed-effects model.", fig.pos="H", fig.height=4}
 library(nlme)
@@ -188,7 +230,9 @@ dat_long |>
   theme(legend.position = "top")
 ```
 
-Note that the mixed model based analysis relies on the assumption that the termination of the measurements can be explained only by observed characteristics.
+Note that the mixed model based analysis relies on the assumption that
+the termination of the measurements can be explained only by observed
+characteristics.
 
 ## Association between T-cell kinetics and clinical events
 
@@ -196,11 +240,17 @@ Something about the time-dependent Cox being sub-optimal.
 
 ## Bringing together the two: a joint model
 
-Referencing main book [@rizopoulosJointModelsLongitudinal2012] and a shorter overview article [@papageorgiouOverviewJointModeling2019].
+Referencing main book [@rizopoulosJointModelsLongitudinal2012] and a
+shorter overview article [@papageorgiouOverviewJointModeling2019].
 
-Something about trajectories interpretation as immortal cohort or for a living patient with random effects equal to zero [@rouanetHowSelectionTime2022].
+Something about trajectories interpretation as immortal cohort or for a
+living patient with random effects equal to zero
+[@rouanetHowSelectionTime2022].
 
-Something about possibility of modelling the intermediate DLI explicity in the trajectories as [@papageorgiouIndividualizedDynamicPrediction2019], or instead use multi-state submodel [Ferrer reference].
+Something about possibility of modelling the intermediate DLI explicity
+in the trajectories as
+[@papageorgiouIndividualizedDynamicPrediction2019], or instead use
+multi-state submodel [Ferrer reference].
 
 Also possibly reference Cuer paper on competing risks joint models.
 
@@ -247,30 +297,64 @@ dat_long |>
 
 ## Model formulation
 
-The (log) T-cell counts (either CD3, CD4 or CD8) for the $i^{\text{th}}$ patient at timepoints $t_{ij} \ (j = 1,\ldots,n_i)$ are denoted by $y_i(t)$. For the longitudinal submodel, we postulated a linear mixed-effects model as 
-\begin{align*}
+The (log) T-cell counts (either CD3, CD4 or CD8) for the $i^{\text{th}}$
+patient at timepoints $t_{ij} \ (j = 1,\ldots,n_i)$ are denoted by
+$y_i(t)$. For the longitudinal submodel, we postulated a linear
+mixed-effects model as \begin{align*}
   y_i(t) &= m_i(t) + \epsilon_i(t), \\
          &= \beta_0 + \sum_{q=1}^3(\beta_q + b_{iq})B_q(t)  + \sum_{q=1}^3 \beta_{q + 3}\{B_q(t) \times \text{Risk}_i\} + \sum_{q=1}^3 \beta_{q + 6}\{B_q(t) \times \text{Donor}_i\} \\
   &\qquad + \sum_{q=1}^3 \beta_{q + 9}\{B_q(t) \times \text{Risk}_i \times \text{Donor}_i\} + \beta_{13}\text{CMV}_i + \beta_{14}\text{Risk}_i + \beta_{15}\text{Donor}_i \\
   &\qquad + \beta_{16} \{\text{Risk}_i \times \text{Donor}_i\} + \epsilon_i(t).
-\end{align*}
-$\text{Risk}_i$, $\text{Donor}_i$ and $\text{CMV}_i$ respectively represent the dummy variables for baseline disease risk (the intention-to-treat variable, high-risk compared to non-high risk), donor type (unrelated compared to related donor) and patient/donor Cytomegalovirus (CMV) serostatus at baseline (any one of patient or donor positive, compared to patient and donor both negative).
+\end{align*} $\text{Risk}_i$, $\text{Donor}_i$ and $\text{CMV}_i$
+respectively represent the dummy variables for baseline disease risk
+(the intention-to-treat variable, high-risk compared to non-high risk),
+donor type (unrelated compared to related donor) and patient/donor
+Cytomegalovirus (CMV) serostatus at baseline (any one of patient or
+donor positive, compared to patient and donor both negative).
 
-Time since alloSCT was modelled flexibly assuming restricted (natural) cubic splines with two internal knots placed at the 33.3\% and 66.7% percentiles of the measurement times. This is represented above by $B_q(t)$, corresponding to the $q^{\text{th}}$ basis function of the spline. The fixed effects part of the model posits a three-way interaction between time, donor type and baseline disease risk, as well as a main effect of patient/donor CMV status. The three-way interaction was constructed to a) capture the slower expected average trajectory of patients with an unrelated donor, due to the use of anti-thymocyte globulin (ATG) in this group; and b) to test for a difference in average trajectories between baseline disease risk groups. 
+Time since alloSCT was modelled flexibly assuming restricted (natural)
+cubic splines with two internal knots placed at the 33.3% and 66.7%
+percentiles of the measurement times. This is represented above by
+$B_q(t)$, corresponding to the $q^{\text{th}}$ basis function of the
+spline. The fixed effects part of the model posits a three-way
+interaction between time, donor type and baseline disease risk, as well
+as a main effect of patient/donor CMV status. The three-way interaction
+was constructed to a) capture the slower expected average trajectory of
+patients with an unrelated donor, due to the use of anti-thymocyte
+globulin (ATG) in this group; and b) to test for a difference in average
+trajectories between baseline disease risk groups.
 
-In terms of random effects, this models assumes random slopes $b_{iq}$ (one for each basis function), and a fixed intercept. This fixed intercept was justified given that this cohort underwent T-cell depleted (TCD) alloSCT, and most patients were therefore expected to start follow-up with T-cell counts around zero. The random slopes were assumed to be normally distributed with mean zero, with unstructured covariance matrix $D$. Furthermore, $\epsilon_i(t)$ is the patient specific error term.
+In terms of random effects, this models assumes random slopes $b_{iq}$
+(one for each basis function), and a fixed intercept. This fixed
+intercept was justified given that this cohort underwent T-cell depleted
+(TCD) alloSCT, and most patients were therefore expected to start
+follow-up with T-cell counts around zero. The random slopes were assumed
+to be normally distributed with mean zero, with unstructured covariance
+matrix $D$. Furthermore, $\epsilon_i(t)$ is the patient specific error
+term.
 
 <!-- Code here with long format and nlme code? -->
 
-The time-to-event submodel was composed of multiple cause-specific proportional hazards models as 
-\begin{align*}
+The time-to-event submodel was composed of multiple cause-specific
+proportional hazards models as \begin{align*}
   h_{1i}(t) &= h_{10}(t) \exp\big\{\gamma_{11}\text{Donor}_i + \gamma_{12}\text{Risk}_i + \alpha_1 m_i(t) \big\}, \\ 
   h_{2i}(t) &= h_{20}(t) \exp\big\{\gamma_{21}\text{Donor}_i + \gamma_{22}\text{Risk}_i + \alpha_2 m_i(t) \big\}, \\
   h_{3i}(t) &= h_{30}(t) \exp\big\{\gamma_{31}\text{Donor}_i + \alpha_3 m_i(t) \big\},
-\end{align*}
-where the $h_{ki}(t)$ for $k \in \{1, 2, 3\}$ respectively represent the cause-specific hazards of GvHD, relapse and other failures. The cause-specific baseline hazards $h_{k0}(t)$ were approximated on the log scale using cubic B-splines with three internal knots. The above corresponds to the 'current value' parametrization of the joint model, where the $\exp(\alpha_k)$ would represent the hazard ratio (for cause $k$) when comparing two patients (with same covariates) whose 'true' underlying (log) T-cell values at a particular timepoint $m_i(t)$ differ by one. The $\gamma_{kp}$ coefficients are interpreted analogously to main effects in standard cause-specific Cox proportional hazards models.
+\end{align*} where the $h_{ki}(t)$ for $k \in \{1, 2, 3\}$ respectively
+represent the cause-specific hazards of GvHD, relapse and other
+failures. The cause-specific baseline hazards $h_{k0}(t)$ were
+approximated on the log scale using cubic B-splines with three internal
+knots. The above corresponds to the 'current value' parametrization of
+the joint model, where the $\exp(\alpha_k)$ would represent the hazard
+ratio (for cause $k$) when comparing two patients (with same covariates)
+whose 'true' underlying (log) T-cell values at a particular timepoint
+$m_i(t)$ differ by one. The $\gamma_{kp}$ coefficients are interpreted
+analogously to main effects in standard cause-specific Cox proportional
+hazards models.
 
-In addition to the current value parametrization, we als ran the models assuming a time-dependent slopes association structure as $\alpha_{k1}m_i(t) + \alpha_{k2}\{d mi(t)/dt\}$.
+In addition to the current value parametrization, we als ran the models
+assuming a time-dependent slopes association structure as
+$\alpha_{k1}m_i(t) + \alpha_{k2}\{d mi(t)/dt\}$.
 
 ## Diagnostics
 
@@ -309,19 +393,35 @@ purrr::map_dfr(
 
 ## Model formulation
 
-For model II, the time scale was no longer from alloSCT, but instead from time of early low-dose DLI. Therefore, this model was only run among the subset that *did* in fact receive an early low-dose DLI before the occurrence of other competing events. The longitudinal submodel was again a linear mixed-effect model, given by
-\begin{align*}
+For model II, the time scale was no longer from alloSCT, but instead
+from time of early low-dose DLI. Therefore, this model was only run
+among the subset that *did* in fact receive an early low-dose DLI before
+the occurrence of other competing events. The longitudinal submodel was
+again a linear mixed-effect model, given by \begin{align*}
   y_i(t) &= m_i(t) + \epsilon_i(t), \\
          &= (\beta_0 + b_{i0}) + \sum_{q=1}^2(\beta_q + b_{iq})B_q(t)  + \sum_{q=1}^2 \beta_{q + 2}\{B_q(t) \times \text{Donor}_i\} + \beta_{5}\text{CMV}_i + \epsilon_i(t).
-\end{align*}
-Time was again modelled with restricted cubic splines, but in contrast to model I, we used a single internal knot - due to smaller sample size and fewer measurements per person. For consistency with model I, this average trajectory was allowed to differ per donor type (two-way interaction). In this model, disease risk at baseline was redundant as we ran the model among those having actually received an early low-dose DLI. A fixed effect for patient/donor CMV serostatus was also added to the model. This model comprised both random intercepts $b_{i0}$ and random slopes $b_{iq}$, assumed to follow normal distributions with mean zero and unstructured covariance matrix.
+\end{align*} Time was again modelled with restricted cubic splines, but
+in contrast to model I, we used a single internal knot - due to smaller
+sample size and fewer measurements per person. For consistency with
+model I, this average trajectory was allowed to differ per donor type
+(two-way interaction). In this model, disease risk at baseline was
+redundant as we ran the model among those having actually received an
+early low-dose DLI. A fixed effect for patient/donor CMV serostatus was
+also added to the model. This model comprised both random intercepts
+$b_{i0}$ and random slopes $b_{iq}$, assumed to follow normal
+distributions with mean zero and unstructured covariance matrix.
 
-Due to a limited number of events, relapse and other failure were merged into a composite endpoint. The time-to-event submodel was therefore specified as
-\begin{align*}
+Due to a limited number of events, relapse and other failure were merged
+into a composite endpoint. The time-to-event submodel was therefore
+specified as \begin{align*}
   h_{1i}(t) &= h_{10}(t) \exp\big\{\gamma_{11}\text{Donor}_i + \alpha_1 m_i(t) \big\}, \\ 
   h_{2i}(t) &= h_{20}(t) \exp\big\{\alpha_2 m_i(t) \big\},
-\end{align*}
-where the $h_{ki}(t)$ for $k \in \{1, 2\}$ respectively represent the cause-specific hazards of GvHD and the composite of relapse and other failures. The cause-specific baseline hazards $h_{k0}(t)$ were approximated on the log scale using cubic B-splines with two internal knots. In this joint model, only the current value parametrization was explored.
+\end{align*} where the $h_{ki}(t)$ for $k \in \{1, 2\}$ respectively
+represent the cause-specific hazards of GvHD and the composite of
+relapse and other failures. The cause-specific baseline hazards
+$h_{k0}(t)$ were approximated on the log scale using cubic B-splines
+with two internal knots. In this joint model, only the current value
+parametrization was explored.
 
 <!-- Debate whether to use pseudo code if github there anyway? -->
 
@@ -379,8 +479,13 @@ jointModel(
 )
 ```
 
+-   Also add point from manuscript, mentioning limitation of separate
+    joint models instead of a model for all cell lines. And that this is
+    really a requirement for dynamic prediction
+
 ## Software choices
 
-`{JM}`, `{JMbayes}`, `{JMbayes2}`, `{joineR}`, `{joineRML}` - citing @hickeyComparisonJointModels2018
+`{JM}`, `{JMbayes}`, `{JMbayes2}`, `{joineR}`, `{joineRML}` - citing
+@hickeyComparisonJointModels2018
 
 # References

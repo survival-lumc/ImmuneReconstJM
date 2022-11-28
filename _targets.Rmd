@@ -5,7 +5,7 @@ output: github_document
 ---
 
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", tar_interactive = FALSE) #
 ```
 
 # Pipeline
@@ -212,8 +212,8 @@ list(
     list(
       fixed = ~ 0 + dns(intSCT2_7, 3) +
         dns(intSCT2_7, 3):as.numeric(hirisk == "yes") +
-        dns(intSCT2_7, 3):as.numeric(ATG == "ALT+ATG") +
-        dns(intSCT2_7, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        dns(intSCT2_7, 3):as.numeric(ATG == "UD(+ATG)") +
+        dns(intSCT2_7, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "UD(+ATG)"),
       random = ~ 0 + dns(intSCT2_7, 3),
       indFixed = c(2:4, 8:13, 15:17),
       indRandom = c(1:3)
@@ -231,7 +231,7 @@ list(
       lng.in.kn = preDLI_basehaz_knots
     )
   ),
-  # This one gets stuck local minima.. update iter.EM to 250
+  # This one gets stuck local minima.. update iter.EM to 500
   tar_target(
     preDLI_JM_both_corr_CD4,
     update(
@@ -242,7 +242,7 @@ list(
       interFact = list("value" = ~ strata(trans) - 1, "slope" = ~ strata(trans) - 1),
       derivForm = derivForm_preDLI,
       lng.in.kn = preDLI_basehaz_knots,
-      iter.EM = 250L,
+      iter.EM = 500L,
       verbose = TRUE
     )
   ),

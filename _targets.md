@@ -32,11 +32,15 @@ workflow.
 
 ``` r
 library("targets")
-#> Warning: package 'targets' was built under R version 4.2.2
 library("tarchetypes")
 #> Warning: package 'tarchetypes' was built under R version 4.2.2
 library("future")
 #> Warning: package 'future' was built under R version 4.2.2
+#> 
+#> Attaching package: 'future'
+#> The following object is masked from 'package:survival':
+#> 
+#>     cluster
 library("future.callr")
 library("here")
 #> here() starts at C:/Users/efbonneville/OneDrive - LUMC/immune-reconstitution-JM/code
@@ -225,8 +229,8 @@ list(
     list(
       fixed = ~ 0 + dns(intSCT2_7, 3) +
         dns(intSCT2_7, 3):as.numeric(hirisk == "yes") +
-        dns(intSCT2_7, 3):as.numeric(ATG == "ALT+ATG") +
-        dns(intSCT2_7, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "ALT+ATG"),
+        dns(intSCT2_7, 3):as.numeric(ATG == "UD(+ATG)") +
+        dns(intSCT2_7, 3):as.numeric(hirisk == "yes"):as.numeric(ATG == "UD(+ATG)"),
       random = ~ 0 + dns(intSCT2_7, 3),
       indFixed = c(2:4, 8:13, 15:17),
       indRandom = c(1:3)
@@ -417,4 +421,7 @@ list(
 
 # Manuscript figures
 
-…
+Add here targets for:
+
+- Statistical supplement rmd (with corresponding figures)
+- Manuscript figures rmd

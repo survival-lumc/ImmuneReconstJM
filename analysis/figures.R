@@ -22,6 +22,8 @@ theme_set(
     )
 )
 
+#
+confint(tar_read(preDLI_JM_value_corr_CD3))
 
 # Load models/data
 tar_load(
@@ -92,8 +94,17 @@ ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
   geom_point(size = 3.5, alpha = 0.8, col = colrs[[1]]) +
   geom_vline(aes(xintercept = endpoint7), linetype = "dashed") +
   facet_wrap(~ as.numeric(factor(IDAA))) +  # instead of IDAA to get 1:16
-  labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
-  log_axis_scales +
+  labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 cell count (x10"^"6","/l)"))) +
+  scale_y_continuous(
+    breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+    labels = c(0.1, 1, 5, 25, 100, 500, 1500),
+    sec.axis = sec_axis(
+      trans = ~ .,
+      breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+      labels = round(log(c(0.1, 1, 5, 25, 100, 500, 1500)), 1),
+      name = "Log value",
+    )
+  ) +
   geom_label(
     data = dat_long_pre_last[IDAA %in% IDAA_subs_pre],
     aes(x = endpoint7 + 0.05, y = log(2.5), label = endpoint_lab),
@@ -123,7 +134,7 @@ ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
 ggsave(
   here("analysis/figures/preDLI_lines_indiv.png"),
   dpi = 300,
-  width = 12,
+  width = 13,
   height = 8
 )
 
@@ -133,7 +144,7 @@ ggsave(
 # Do we exclude the censoring here? And maybe no smooth line?
 ggplot(dat_long_pre, aes(intSCT2_7, CD3_abs_log, group = IDAA)) +
   geom_line(show.legend = FALSE, linewidth = 1, alpha = 0.5, col = colrs[[6]]) +
-  labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
+  labs(x = "Time since alloSCT (months)", y = expression(paste("CD3 cell count (x10"^"6","/l)"))) +
   log_axis_scales +
   # geom_smooth(
   #   linewidth = 2,
@@ -360,7 +371,7 @@ ggplot(
   aes(intDLI1, CD3_abs_log, group = IDAA)
 ) +
   geom_point(size = 3.5, alpha = 0.8, col = colrs[[1]]) +
-  labs(x = "Time since DLI (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
+  labs(x = "Time since DLI (months)", y = expression(paste("CD3 cell count (x10"^"6","/l)"))) +
   log_axis_scales +
   # For person with single measurement
   geom_point(
@@ -412,7 +423,7 @@ ggplot(dat_long_postDLI, aes(intDLI1, CD3_abs_log, group=IDAA)) +
     data = dat_long_postDLI[!dat_long_postDLI$IDAA %in% dat_long_postDLI$IDAA[duplicated(dat_long_postDLI$IDAA)], ],
     show.legend = FALSE, size = 1, col = colrs[[6]]
   ) + # add dots for those with only one measurement
-  labs(x = "Time since DLI (months)", y = expression(paste("CD3 (x10"^"6","/l)"))) +
+  labs(x = "Time since DLI (months)", y = expression(paste("CD3 cell count (x10"^"6","/l)"))) +
   log_axis_scales +
   facet_wrap(~ endpoint_lab)
 
@@ -421,7 +432,7 @@ ggsave(
   here("analysis/figures/postDLI_perEndpoint.png"),
   dpi = 300,
   width = 8,
-  height = 8
+  height = 4
 ) #
 
 
@@ -839,4 +850,86 @@ png(
 )
 final
 dev.off()
+
+
+
+# Tests CMV figure preDLI -------------------------------------------------
+
+
+rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(CMV_PD, hirisk))) +
+  geom_ribbon(aes(ymin = low, ymax = upp), fill = confint_col, alpha = confint_alpha, col = NA) +
+  geom_line(aes(linetype = hirisk, col = CMV_PD), linewidth = 1.5) +
+  facet_grid(
+    cell_line ~ ATG * hirisk,
+    labeller = as_labeller(
+      c(
+        "UD" = "RD",
+        "UD(+ATG)" = "UD(+ATG)",
+        "CD3" = "CD3",
+        "CD4" = "CD4",
+        "CD8" = "CD8",
+        "no" = "Non-high risk",
+        "yes" = "High risk"
+      )
+    )
+  ) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    col = "CMV patient/donor",
+    linetype = "High risk"
+  ) +
+  log_axis_scales +
+  scale_color_manual(
+    labels = c("-/-", "Other"),
+    values = c(colrs[[1]], colrs[[6]])
+  ) +
+  scale_linetype_manual(
+    #labels = c("-/-", "Other"),
+    values = c("solid", "dotdash")
+  ) +
+  guides(colour = guide_legend(reverse = TRUE), linetype = guide_legend(reverse = TRUE))
+
+
+rbindlist(marg_preds_preDLI, idcol = "cell_line") |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(CMV_PD, hirisk))) +
+  geom_ribbon(aes(ymin = low, ymax = upp), fill = confint_col, alpha = confint_alpha, col = NA) +
+  geom_line(aes(linetype = hirisk, col = CMV_PD), linewidth = 1.5) +
+  facet_grid(
+    cell_line ~ ATG,
+    labeller = as_labeller(
+      c(
+        "UD" = "RD",
+        "UD(+ATG)" = "UD(+ATG)",
+        "CD3" = "CD3",
+        "CD4" = "CD4",
+        "CD8" = "CD8"
+      )
+    )
+  ) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("cell count (x10"^"6","/l)")),
+    col = "CMV patient/donor",
+    linetype = "High risk"
+  ) +
+  log_axis_scales +
+  scale_color_manual(
+    labels = c("-/-", "Other"),
+    values = c(colrs[[1]], colrs[[6]])
+  ) +
+  scale_linetype_manual(
+    #labels = c("-/-", "Other"),
+    values = c("solid", "dotdash")
+  ) +
+  guides(colour = guide_legend(reverse = TRUE), linetype = guide_legend(reverse = TRUE))
+
+ggsave(
+  here("analysis/figures/preDLI_CMV_v2.png"),
+  dpi = 300,
+  width = 8,
+  height = 8,
+  units = "in"
+)
 
