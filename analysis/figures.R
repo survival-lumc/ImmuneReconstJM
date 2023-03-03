@@ -295,7 +295,7 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
     cell_line ~ ATG,
     labeller = as_labeller(
       c(
-        "UD" = "RD",
+        "RD" = "RD",
         "UD(+ATG)" = "UD(+ATG)",
         "CD3" = "CD3",
         "CD4" = "CD4",

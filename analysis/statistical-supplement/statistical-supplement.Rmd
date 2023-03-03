@@ -29,24 +29,46 @@ knitr::opts_chunk$set(
   echo = FALSE, 
   out.width = "100%", 
   warning = FALSE, 
-  message = FALSE
+  message = FALSE,
+  dev = "cairo_pdf" # important, or else Roboto Cond. font won't export
 )
 
+# https://stackoverflow.com/questions/55009313/how-to-use-cairo-pngs-in-r-markdown
+
 # Version control: https://github.com/hughjonesd/latexdiffr for latexdiffr
-
-# Load libraries, set seed and theme
-set.seed(8498456)
-library(data.table)
-library(targets)
-library(ggplot2)
-library(JM)
-
-theme_set(theme_bw(base_size = 14))
 ```
 
 <!-- Load targets objects -->
 
 ```{r load-objs}
+# Load libraries, set seed and theme
+set.seed(8498456)
+library(extrafont)
+library(Manu)
+library(data.table)
+library(splines)
+library(targets)
+library(ggplot2)
+library(JM)
+
+# Global plots theme + settings
+colrs <- Manu::get_pal("Hoiho")
+confint_alpha <- 0.5
+confint_col <- "lightgray"
+global_font <- "Roboto Condensed"
+log_axis_scales <- scale_y_continuous(
+  breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
+  labels = c(0.1, 1, 5, 25, 100, 500, 1500)
+)
+
+theme_set(
+  theme_light(base_size = 14, base_family = global_font) +
+    theme(
+      strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
+      strip.text = element_text(colour = 'white')
+    )
+)
+
 tar_load(
   c(
     NMA_preDLI_datasets,
@@ -72,8 +94,9 @@ events. The data at hand are comprised of
 -   Time of standard prophylactic DLI, and time of early low dose DLI
     (if given).
 -   Time to various clinical events occurring during follow-up, such as
-    start of therapeutic immunosuppression Graft-versus-Host-Disease
-    (GvHD) or relapse of the underlying disease.
+    start of therapeutic immunosuppression for treatment
+    Graft-versus-Host-Disease (GvHD), or relapse of the underlying
+    disease.
 
 Note that the data components outlined above are inextricably
 interlinked. For example, a patient dying or dropping out of a study
@@ -83,19 +106,23 @@ absence of death or drop-out are *missing*. The suspected reason(s)
 behind this missingness is a key consideration behind the choice of
 analysis approach: the occurrence of death could be related to observed
 (e.g. baseline covariates, measured T-cell counts) or unobserved (e.g.
-latent characteristics of the T-cell counts, such as rate of increase at
-a point in time) information [@rouanetInterpretationMixedModels2019].
+latent characteristics of the T-cell counts such as the 'true' value at
+a point in time, free of measurement error) information
+[@rouanetInterpretationMixedModels2019].
 
 While death and drop-out are well-known drivers of cohort attrition, for
 modelling purposes the longitudinal measurements may also be
 \`artificially terminated' at the occurrence of some clinical event of
 interest (e.g. GvHD in the present context) after which the patient may
-in reality remain in follow-up afterwards. While it may be clear why we
-should do this when modelling the association between a longitudinal
+in reality remain in follow-up afterwards. Although it may be clear why
+we should do this when modelling the association between a longitudinal
 marker and a time-to-event outcome (future measurements cannot help
 predict past events), it is also an important consideration for the
-trajectory of the marker itself: the population of interest evolves over
-time, and the clinical event may influence the trajectories themselves.
+trajectory of the marker itself. The trajectory changes so fundamentally
+through the clinical events that analyzing subsequent measurements
+together with those preceding the event is generally not meaningful.
+
+<!-- Mention multi state is a way to make it make sense -->
 
 ## Modelling the impact of early low-dose DLI on T-cell kinetics
 
@@ -105,10 +132,10 @@ low-dose DLIs were scheduled. A first avenue for assessing the impact of
 early low-dose DLI on T-cell kinetics would be simple descriptive
 analysis: for example, selecting a number of timepoints or intervals and
 thereafter visualizing the distribution and average of the T-cell counts
-per ITT group. The plot below shows a possible analysis for the CD4
+per ITT group. Figure S1 below shows a possible analysis for the CD4
 counts.
 
-```{r descrip, eval=TRUE, fig.cap = "Descriptive analysis", fig.pos="H",fig.height=4}
+```{r descrip, eval=TRUE, fig.cap = "Descriptive analysis, dividing the measurements into one-month intervals.", fig.pos="H",fig.height=4}
 dat_long <- NMA_preDLI_datasets$long
 dat_wide <- NMA_preDLI_datasets$wide
 
@@ -118,13 +145,11 @@ dat_long[, time_cat := cut(
 dat_long |> 
   ggplot(aes(time_cat, CD4_abs_log, fill = hirisk)) +
   geom_boxplot() +
-  facet_wrap(
-    ~ ATG, 
-    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)"))
-  ) +
-  scale_fill_discrete(
+  facet_wrap(~ ATG) +
+  scale_fill_manual(
     "Risk group",
-    labels = c("Non-high risk", "High risk")
+    labels = c("Non-high risk", "High risk"),
+    values = c(colrs[[4]], colrs[[1]])
   ) +
   scale_y_continuous(
     breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
@@ -138,7 +163,6 @@ dat_long |>
 ```
 
 ```{r linmod-flex, fig.cap = "Analysis using a linear model with restricted cubic splines.", fig.pos="H", fig.height=4}
-library(splines)
 mod_lin <- lm(
   formula = CD4_abs_log ~ ns(intSCT2_7, 3) * hirisk * ATG,
   data = dat_long
@@ -147,16 +171,13 @@ dat_long[, pred_lin := predict(mod_lin)]
 
 dat_long |> 
   ggplot(aes(intSCT2_7, CD4_abs_log)) +
-  geom_point(size = 3, alpha = 0.5, col = "lightblue") + 
+  geom_point(size = 1.5, alpha = 0.5, col = colrs[[1]]) + 
   #geom_line(aes(group = IDAA), size = 1, alpha = 0.1) +
   #geom_boxplot() +
-  facet_wrap(
-    ~ ATG, 
-    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)"))
-  ) +
+  facet_wrap(~ ATG) +
   geom_line(
     aes(y = pred_lin, group = hirisk, col = hirisk, linetype = hirisk),
-    size = 3
+    linewidth = 2
   ) + 
   scale_y_continuous(
     breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
@@ -166,9 +187,10 @@ dat_long |>
     x = "Time since alloSCT (months)",
     y = expression(paste("CD4 (x10"^"6","/l)"))
   ) +
-  scale_colour_discrete(
+  scale_colour_manual(
     "Risk group",
-    labels = c("Non-high risk", "High risk")
+    labels = c("Non-high risk", "High risk"),
+    values = c(colrs[[4]], colrs[[6]])
   ) +
   scale_linetype_discrete(
     "Risk group",
@@ -177,13 +199,15 @@ dat_long |>
   theme(legend.position = "top")
 ```
 
+The measurements in Figure S1 are binned into one-month intervals, and are further split by risk group (non-high versus high risk) and donor type (related donor, RD, versus unrelated donor, UD). To simplify the visualisations in this section, the CMV patient-donor match is ignored.
+
 Since conclusions based on a descriptive analysis may depend on the
 chosen time intervals and number of measurements per interval, we may
-instead choose to smooth across the individual trajectories using a
+instead choose to smooth across all individual measurements using a
 (flexible) linear model (Figure S2). This however does not take into
-account individual heterogeneity in trajectories. Figure S3 looks at the
-average and fitted individual trajectories obtained with the linear
-mixed effects model.
+account the correlation between different values of the same patient
+over time. Figure S3 instead looks at the average and fitted individual
+trajectories obtained with a linear mixed effects model.
 
 ```{r mixed-mod, fig.cap="Analysis using a linear mixed-effects model.", fig.pos="H", fig.height=4}
 library(nlme)
@@ -201,15 +225,12 @@ dat_long[, ':=' (
 
 dat_long |> 
   ggplot(aes(intSCT2_7, pred_indiv)) +
-  geom_line(aes(group = IDAA), size = 1, alpha = 0.1) +
+  geom_line(aes(group = IDAA), size = 1, alpha = 0.5, col = colrs[[1]]) +
   #geom_boxplot() +
-  facet_wrap(
-    ~ ATG, 
-    labeller = as_labeller(c("UD" = "RD", "UD(+ATG)" = "UD(+ATG)"))
-  ) +
+  facet_wrap(~ ATG) +
   geom_line(
     aes(y = pred_marg, group = hirisk, col = hirisk, linetype = hirisk),
-    size = 2
+    linewidth = 2
   ) + 
   scale_y_continuous(
     breaks = log(c(0.1, 1, 5, 25, 100, 500, 1500)),
@@ -219,9 +240,10 @@ dat_long |>
     x = "Time since alloSCT (months)",
     y = expression(paste("CD4 (x10"^"6","/l)"))
   ) +
-  scale_colour_discrete(
+  scale_colour_manual(
     "Risk group",
-    labels = c("Non-high risk", "High risk")
+    labels = c("Non-high risk", "High risk"),
+    values = c(colrs[[4]], colrs[[6]])
   ) +
   scale_linetype_discrete(
     "Risk group",
@@ -232,27 +254,19 @@ dat_long |>
 
 Note that the mixed model based analysis relies on the assumption that
 the termination of the measurements can be explained only by observed
-characteristics.
+characteristics (i.e. baseline covariates or measured T-cell counts).
+
+<!-- Forest plot of coefficients? -->
 
 ## Association between T-cell kinetics and clinical events
 
-Something about the time-dependent Cox being sub-optimal.
+To assess the association between between the T-cell kinetics and the (competing) events described in the main article, we could use extended cause-specific Cox proportional hazards models. The T-cell measurements are then used as a time-varying predictor. This approach ignores any measurement error, and assumes that the value of the time-varying predictor stays *constant* between measurement times. As a result, the true association may be underestimated, and the estimate will have larger confidence intervals compared to those obtained using a joint model (described in the following section). A recent tutorial comparing the joint model to the extended Cox model is found in the work of @baartJointModelingLongitudinal2021. 
 
 ## Bringing together the two: a joint model
 
-Referencing main book [@rizopoulosJointModelsLongitudinal2012] and a
-shorter overview article [@papageorgiouOverviewJointModeling2019].
+@rizopoulosJointModelsLongitudinal2012 provides a comprehensive overview shared-parameter joint models, and their extensions. A more compact overview can also be found in the work of [@papageorgiouOverviewJointModeling2019]. As described in the main article, joint models consist of two components: a longitudinal submodel (generally a mixed effects regression model), and a time-to-event submodel (a Cox-like proportional hazards model). Importantly, the random effects (used to capture the variability in subject-specific T-cell count trajectories) are *shared* between the models. This implies we can a) assess the impact of the T-cell trajectories on the hazard of the clinical events, and b) the estimated trajectories can themselves be corrected for bias related to the measurements being terminated by the occurrence of the clinical events. Furthermore, in contract to the time-varying Cox model, measurement error is correctly accounted for in joint models. The joint models used in the main article are described in detail below.
 
-Something about trajectories interpretation as immortal cohort or for a
-living patient with random effects equal to zero
-[@rouanetHowSelectionTime2022].
-
-Something about possibility of modelling the intermediate DLI explicity
-in the trajectories as
-[@papageorgiouIndividualizedDynamicPrediction2019], or instead use
-multi-state submodel [Ferrer reference].
-
-Also possibly reference Cuer paper on competing risks joint models.
+<!-- Comparison also of results with JM vs TD cox -->
 
 ```{r test-swimmer,fig.cap="Swimmer plot (to do: label DLI)", fig.pos="htbp", fig.dim=c(6, 8), eval=FALSE}
 # Only works with out.width for now; place at end / beginning sections
@@ -352,7 +366,7 @@ $m_i(t)$ differ by one. The $\gamma_{kp}$ coefficients are interpreted
 analogously to main effects in standard cause-specific Cox proportional
 hazards models.
 
-In addition to the current value parametrization, we als ran the models
+In addition to the current value parametrization, we also ran the models
 assuming a time-dependent slopes association structure as
 $\alpha_{k1}m_i(t) + \alpha_{k2}\{d mi(t)/dt\}$.
 
@@ -460,32 +474,25 @@ purrr::map_dfr(
 
 # Other considerations
 
-<!-- Example snippet-->
+## Limitations and possible extensions
 
-```{r test-snip, echo=TRUE, eval=FALSE}
-# Add snippets or not?
-jointModel(
-  lmeObject = preDLI_long_corr_CD3,
-  survObject = preDLI_cox,
-  CompRisk = TRUE,
-  method = "spline-PH-aGH",
-  timeVar = "intSCT2_7",
-  parameterization = "value",
-  interFact = list("value" = ~ strata(trans) - 1),
-  iter.qN = 1000,
-  lng.in.kn = preDLI_basehaz_knots,
-  numeriDeriv = "cd",
-  eps.Hes = 1e-04
-)
-```
+In the main article, separate joint models were run for each T-cell subset. Ideally, we would like to model these subset *jointly*, using a multivariate (i.e. allowing multiple correlated longitudinal outcomes) joint model. First, this would allow to have a single set of estimates for the main effects of donor type and baseline risk group, adjusted for all T-cell subsets. Currently, the estimates of these main effects (visualized in the forest plots from Figures 5 and 6 of the main article) differ simply because they are each adjust for a different T-cell subset in turn. Second, such a multivariate model would allow dynamic prediction of the competing events conditional on the current values (and slopes) of all T-cell subsets. Nevertheless, such models are generally computationally intensive, and likely require a much larger sample size.
 
--   Also add point from manuscript, mentioning limitation of separate
-    joint models instead of a model for all cell lines. And that this is
-    really a requirement for dynamic prediction
+
+Something about trajectories interpretation as immortal cohort or for a
+living patient with random effects equal to zero
+[@rouanetHowSelectionTime2022].
+
+Something about possibility of modelling the intermediate DLI explicity
+in the trajectories as
+[@papageorgiouIndividualizedDynamicPrediction2019], or instead use
+multi-state submodel [Ferrer reference].
+
+Also possibly reference Cuer paper on competing risks joint models.
 
 ## Software choices
 
-`{JM}`, `{JMbayes}`, `{JMbayes2}`, `{joineR}`, `{joineRML}` - citing
-@hickeyComparisonJointModels2018
+While the `{JM}` R package [@rizopoulosJMPackageJoint2010] was used in the current work, many different R packages implement shared parameter joint models. The most notable others are `{JMbayes}` [@rizopoulosPackageJMbayesFitting2016], `{JMbayes2}` [@rizopoulosJMbayes2ExtendedJoint2022], `{joineR}` [@philipsonJoineRJointModelling2018,@williamsonJointModellingLongitudinal2008] and `{joineRML}` [@hickeyJoineRMLJointModel2018]. Each of these differ either based on the estimation framework and methods (e.g. Bayesian, frequentist), or on the specific parametrizations used for the joint model (e.g. shared random effects or latent).
+@hickeyComparisonJointModels2018 provide an overview of joint models for competing risks.
 
 # References
