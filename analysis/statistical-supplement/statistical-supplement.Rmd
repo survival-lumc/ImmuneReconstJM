@@ -34,7 +34,6 @@ knitr::opts_chunk$set(
 )
 
 # https://stackoverflow.com/questions/55009313/how-to-use-cairo-pngs-in-r-markdown
-
 # Version control: https://github.com/hughjonesd/latexdiffr for latexdiffr
 ```
 
@@ -69,78 +68,41 @@ theme_set(
     )
 )
 
-tar_load(
-  c(
-    NMA_preDLI_datasets,
-    dat_merged
-  )
-)
+tar_load(c(NMA_preDLI_datasets, dat_merged))
 ```
 
 The present supplementary material is a \`Statistical Supplement' to the
 main article, providing mathematical summaries of the models used.
 
-<!-- Comparison also of results with JM vs TD cox -->
-
-```{r test-swimmer,fig.cap="Swimmer plot (to do: label DLI)", fig.pos="htbp", fig.dim=c(6, 8), eval=FALSE}
-# Only works with out.width for now; place at end / beginning sections
-# See also https://stackoverflow.com/questions/42486617/knitr-ignoring-fig-pos
-# https://github.com/rstudio/rmarkdown/issues/1345
-
-#dat_merged[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")]
-
-# Prep endpoints 
-dat_evs <- melt.data.table(
-  data = dat_wide,
-  id.vars = "IDAA",
-  measure.vars = c("uDLI", "endpoint7"),
-  variable.name = "event_id",
-  value.name = "intSCT2_7"
-)
-#dat_evs[intSCT2_7 > 6]
-
-# Actually better to do this with raw data
-
-dat_long |> 
-  ggplot(aes(x = intSCT2_7, y = reorder(IDAA, endpoint7))) +
-  geom_line(aes(group = IDAA), linetype = "dotted", alpha = 0.5) +
-  geom_point(
-  ) +
-  facet_grid(
-    endpoint7_s ~ ., 
-    #labeller = labeller(endpoint5_s = event_labs),
-    scales = "free_y",
-    space = "free"
-  ) +
-  labs(x = "Time since alloHCT (months)", y = "Patient ID") + 
-  theme_light(base_size = 14) +
-  theme(
-    legend.position = "none",
-    axis.text.y = element_blank(), 
-    panel.grid.major.y = element_blank()
-  ) 
-```
-
 # Joint Model I
+
+Joint models only consider measurements taken prior to the occurrence of the clinical events of interest. Occasionally, the measurement time and event time coincide: for example, T-cell counts may be recorded on the same day as the start of therapeutic systemic immunosuppression for Graft-versus-Host-Disease (GvHD). In order to retain the information of the measurements taken at event times, we set the time of these measurements to one day earlier, which assumes that the measurement at the event time was representative of the T-cell counts the day before the event. However, we excluded measurements at time of relapse, since the presence of blasts in the peripheral blood could lead to incorrect counts of the normal T-cells. We also excluded measurements at time of autologous recovery, as donor-derived T-cells were no longer present, and therefore also no potentially alloreactive T-cells capable of inducing GvHD or Graft-versus-leukemia (GvL) effect. 
+
+<!-- (Remaining to-do: a. possibly change title of supplement/give it a number? b. merge pdf with remaining supplement) -->
 
 ## Model formulation
 
-The (log) T-cell counts (either CD3, CD4 or CD8) for the $i^{\text{th}}$
-patient at timepoints $t_{ij} \ (j = 1,\ldots,n_i)$ are denoted by
-$y_i(t)$. For the longitudinal submodel, we postulated a linear
-mixed-effects model as \begin{align*}
-  y_i(t) &= m_i(t) + \epsilon_i(t), \\
-         &= \beta_0 + \sum_{q=1}^3(\beta_q + b_{iq})B_q(t)  + \sum_{q=1}^3 \beta_{q + 3}\{B_q(t) \times \text{Risk}_i\} + \sum_{q=1}^3 \beta_{q + 6}\{B_q(t) \times \text{Donor}_i\} \\
+The longitudinal submodel assumes that the true underlying (log) T-cell counts (either CD3, CD4 or CD8) for the $i^{\text{th}}$ patient are given by
+\begin{align*}
+  m_i(t)  &= \beta_0 + \sum_{q=1}^3(\beta_q + b_{iq})B_q(t)  + \sum_{q=1}^3 \beta_{q + 3}\{B_q(t) \times \text{Risk}_i\} + \sum_{q=1}^3 \beta_{q + 6}\{B_q(t) \times \text{Donor}_i\} \\
   &\qquad + \sum_{q=1}^3 \beta_{q + 9}\{B_q(t) \times \text{Risk}_i \times \text{Donor}_i\} + \beta_{13}\text{CMV}_i + \beta_{14}\text{Risk}_i + \beta_{15}\text{Donor}_i \\
-  &\qquad + \beta_{16} \{\text{Risk}_i \times \text{Donor}_i\} + \epsilon_i(t).
-\end{align*} $\text{Risk}_i$, $\text{Donor}_i$ and $\text{CMV}_i$
+  &\qquad + \beta_{16} \{\text{Risk}_i \times \text{Donor}_i\},
+\end{align*}
+
+with random effects vector $b_{i} \sim \mathcal{N}(0, D)$. The observations for the $i^{\text{th}}$ patient at timepoints $t_{ij} \ (j = 1,\ldots,n_i)$ are given by
+\begin{align*}
+  y_{ij} &= m_i(t_{ij}) + \epsilon_{ij},
+\end{align*}
+where $\epsilon_{ij} \sim \mathcal{N}(0, \sigma^2)$ are independent random error terms.
+
+$\text{Risk}_i$, $\text{Donor}_i$ and $\text{CMV}_i$
 respectively represent the dummy variables for baseline disease risk
 (the intention-to-treat variable, high-risk compared to non-high risk),
 donor type (unrelated compared to related donor) and patient/donor
 Cytomegalovirus (CMV) serostatus at baseline (any one of patient or
 donor positive, compared to patient and donor both negative).
 
-Time since alloSCT was modelled flexibly assuming restricted (natural)
+Time since allogeneic stem cell transplantation (alloSCT) was modelled flexibly assuming restricted (natural)
 cubic splines with two internal knots placed at the 33.3% and 66.7%
 percentiles of the measurement times. This is represented above by
 $B_q(t)$, corresponding to the $q^{\text{th}}$ basis function of the
@@ -155,11 +117,8 @@ trajectories between baseline disease risk groups.
 In terms of random effects, this models assumes random slopes $b_{iq}$
 (one for each basis function), and a fixed intercept. This fixed
 intercept was justified given that this cohort underwent T-cell depleted
-(TCD) alloSCT, and most patients were therefore expected to start
-follow-up with T-cell counts around zero. The random slopes were assumed
-to be normally distributed with mean zero, with unstructured covariance
-matrix $D$. Furthermore, $\epsilon_i(t)$ is the patient specific error
-term.
+(TCD) alloSCT, and all patients were therefore expected to start
+follow-up with T-cell counts close to zero. The random slopes were assumed to be normally distributed with mean zero, with unstructured covariance matrix $D$. 
 
 <!-- Code here with long format and nlme code? -->
 
@@ -169,13 +128,13 @@ proportional hazards models as \begin{align*}
   h_{2i}(t) &= h_{20}(t) \exp\big\{\gamma_{21}\text{Donor}_i + \gamma_{22}\text{Risk}_i + \alpha_2 m_i(t) \big\}, \\
   h_{3i}(t) &= h_{30}(t) \exp\big\{\gamma_{31}\text{Donor}_i + \alpha_3 m_i(t) \big\},
 \end{align*} where the $h_{ki}(t)$ for $k \in \{1, 2, 3\}$ respectively
-represent the cause-specific hazards of GvHD, relapse and other
+represent the cause-specific hazards of GvHD, relapse, and other
 failures. The cause-specific baseline hazards $h_{k0}(t)$ were
 approximated on the log scale using cubic B-splines with three internal
 knots. The above corresponds to the 'current value' parametrization of
 the joint model, where the $\exp(\alpha_k)$ would represent the hazard
 ratio (for cause $k$) when comparing two patients (with same covariates)
-whose 'true' underlying (log) T-cell values at a particular timepoint
+whose 'true' (model-based) underlying log T-cell values at a particular timepoint
 $m_i(t)$ differ by one. The $\gamma_{kp}$ coefficients are interpreted
 analogously to main effects in standard cause-specific Cox proportional
 hazards models.
@@ -217,23 +176,32 @@ purrr::map_dfr(
   labs(x = "Fitted values (model predicted log T-cell counts)", y = "Standardized Residuals")
 ```
 
-Above we present standardized residuals plots, which summarize how well the model fits the data overall (i.e. across all observations) - both for the average and subject-specific trajectories. The fitted (i.e. log T-cell counts predicted by the model) values are plotted against the (standardized) distance between the observed measurement and the predicted value. The blue line is a smoothed average of the standardized residuals as a function of the fitted values, and should ideally be horizontal at 0. 
+Above we present standardized residuals plots, which summarize how well the model fits the data overall (i.e. across all observations) - both for the average and subject-specific trajectories. The fitted (i.e. log T-cell counts predicted by the model) values are plotted against the standardized distance between the observed measurement and the predicted value. The blue line is a smoothed average of the standardized residuals as a function of the fitted values, and should ideally be horizontal at 0. 
 
 # Joint Model II
 
 ## Model formulation
 
 For model II, the time scale was no longer from alloSCT, but instead
-from time of early low-dose DLI. Therefore, this model was only run
+from time of early low-dose donor lymphocyte infusion (DLI). Therefore, this model was only run
 among the subset that *did* in fact receive an early low-dose DLI before
-the occurrence of other competing events. The longitudinal submodel was
-again a linear mixed-effect model, given by \begin{align*}
-  y_i(t) &= m_i(t) + \epsilon_i(t), \\
-         &= (\beta_0 + b_{i0}) + \sum_{q=1}^2(\beta_q + b_{iq})B_q(t)  + \sum_{q=1}^2 \beta_{q + 2}\{B_q(t) \times \text{Donor}_i\} + \beta_{5}\text{CMV}_i + \epsilon_i(t).
-\end{align*} Time was again modelled with restricted cubic splines, but
-in contrast to model I, we used a single internal knot - due to smaller
-sample size and fewer measurements per person. For consistency with
-model I, this average trajectory was allowed to differ per donor type
+the occurrence of other competing events. Furthermore, some patients did not have a T-cell measurement on the day of DLI but only a few days prior. For these patients, we used the measurement closest to DLI taken within the last week before DLI as the measurement at time of DLI (time 0).
+
+The longitudinal submodel was
+again a linear mixed-effects model, where the true underlying log T-cell counts are given by
+\begin{align*}
+  m_i(t) &= (\beta_0 + b_{i0}) + \sum_{q=1}^2(\beta_q + b_{iq})B_q(t)  + \sum_{q=1}^2 \beta_{q + 2}\{B_q(t) \times \text{Donor}_i\} + \beta_{5}\text{CMV}_i, 
+\end{align*} 
+with random effects vector $b_{i} \sim \mathcal{N}(0, D)$. Observations for $i^{\text{th}}$ patient are again given by 
+\begin{align*}
+  y_{ij} &= m_i(t_{ij}) + \epsilon_{ij},
+\end{align*}
+
+where $\epsilon_{ij} \sim \mathcal{N}(0, \sigma^2)$ are independent random error terms.
+
+Time was again modelled with restricted cubic splines, but
+in contrast to model I, we used a single internal knot. The focus on a shorter timespan resulted in a reduced sample size, and fewer measurements per person. For consistency with
+model I, this average trajectory was allowed to differ across donor types
 (two-way interaction). In this model, disease risk at baseline was
 redundant as we ran the model among those having actually received an
 early low-dose DLI. A fixed effect for patient/donor CMV serostatus was
@@ -241,14 +209,14 @@ also added to the model. This model comprised both random intercepts
 $b_{i0}$ and random slopes $b_{iq}$, assumed to follow normal
 distributions with mean zero and unstructured covariance matrix.
 
-Due to a limited number of events, relapse and other failure were merged
+Due to a limited number of events, relapse and other failures were merged
 into a composite endpoint. The time-to-event submodel was therefore
 specified as \begin{align*}
   h_{1i}(t) &= h_{10}(t) \exp\big\{\gamma_{11}\text{Donor}_i + \alpha_1 m_i(t) \big\}, \\ 
   h_{2i}(t) &= h_{20}(t) \exp\big\{\alpha_2 m_i(t) \big\},
 \end{align*} where the $h_{ki}(t)$ for $k \in \{1, 2\}$ respectively
 represent the cause-specific hazards of GvHD and the composite of
-relapse and other failures. The cause-specific baseline hazards
+relapse and other failures for subject $i$. The cause-specific baseline hazards
 $h_{k0}(t)$ were approximated on the log scale using cubic B-splines
 with two internal knots. In this joint model, only the current value
 parametrization was explored.

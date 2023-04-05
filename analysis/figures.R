@@ -14,8 +14,10 @@ log_axis_scales <- scale_y_continuous(
   labels = c(0.1, 1, 5, 25, 100, 500, 1500)
 )
 
+base_size_png <- 14
+
 theme_set(
-  theme_light(base_size = 14, base_family = global_font) +
+  theme_light(base_size = base_size_png, base_family = global_font) +
     theme(
       strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
       strip.text = element_text(colour = 'white')
@@ -23,9 +25,10 @@ theme_set(
 )
 
 #
-confint(tar_read(preDLI_JM_value_corr_CD3), )
+confint(tar_read(preDLI_JM_value_corr_CD3))
 confint(tar_read(preDLI_JM_value_corr_CD4))
 summary(tar_read(preDLI_JM_value_corr_CD4))
+
 # Load models/data
 tar_load(
   c(
@@ -131,12 +134,25 @@ ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
   coord_cartesian(xlim = c(0, 7.5)) +
   geom_line(aes(y = curr_val_value), linewidth = 1, col = colrs[[6]]) # indivdual fits
 
-# Figure 1 (later to save as part of pipeline)
+# Figure 2 (later to save as part of pipeline)
 ggsave(
-  here("analysis/figures/preDLI_lines_indiv.png"),
+  here("analysis/figures/figure02.pdf"), # also to eps/tiff?
   dpi = 300,
-  width = 13,
-  height = 8
+  scale = 1.8,
+  units = "mm",
+  width = 180,
+  height = 110,
+  device = cairo_pdf
+)
+
+ggsave(
+  here("analysis/figures/figure02.eps"),
+  dpi = 300,
+  scale = 1.8,
+  units = "mm",
+  width = 180,
+  height = 110,
+  device = cairo_ps
 )
 
 # all pre-DLI trajectories per endpoint -----------------------------------
@@ -328,10 +344,23 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
   )
 
 ggsave(
-  here("analysis/figures/postDLI_CMV.png"),
+  here("analysis/figures/figure04.pdf"), # also to eps/tiff?
   dpi = 300,
-  width = 8,
-  height = 8
+  scale = 1.8,
+  units = "mm",
+  width = 180,
+  height = 110, # 8 by 8 originally
+  device = cairo_pdf
+)
+
+ggsave(
+  here("analysis/figures/figure04.eps"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.8,
+  units = "mm",
+  width = 180,
+  height = 110, # 8 by 8 originally
+  device = cairo_ps
 )
 
 # Pathetic for CMV
@@ -540,7 +569,7 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
     col = guide_legend(reverse = TRUE, override.aes = list(alpha = 1)),
     shape = guide_legend(reverse = TRUE)
   ) +
-  coord_flip() +
+  coord_flip() + # add lims here if desired
   geom_hline(yintercept = 1, linetype = "dotted") +
   #facet_wrap(~endpoint,scales = "free_y",ncol=1, strip.position = "right")+
   facet_grid(rows = "endpoint", scales = "free", space = "free")+
@@ -557,11 +586,25 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
   )
 
 ggsave(
-  here("analysis/figures/preDLI_forest.png"),
+  here("analysis/figures/figure05.pdf"), # also to eps/tiff?
   dpi = 300,
-  width = 10,
-  height = 8
+  scale = 1.5,
+  units = "mm",
+  width = 180,
+  height = 140, # width 10 by  height 8 in originally
+  device = cairo_pdf
 )
+
+ggsave(
+  here("analysis/figures/figure05.eps"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.5,
+  units = "mm",
+  width = 180,
+  height = 140,
+  device = cairo_ps
+)
+
 
 
 #### postDLI
@@ -676,11 +719,25 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
   )
 
 ggsave(
-  here("analysis/figures/postDLI_forest.png"),
+  here("analysis/figures/figure06.pdf"), # also to eps/tiff?
   dpi = 300,
-  height = 6,
-  width = 11
+  scale = 1.5,
+  units = "mm",
+  width = 180,
+  height = 90, # width 11 by  height 6 in originally
+  device = cairo_pdf
 )
+
+ggsave(
+  here("analysis/figures/figure06.eps"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.5,
+  units = "mm",
+  width = 180,
+  height = 90,
+  device = cairo_ps
+)
+
 
 # Facet zoom customed -----------------------------------------------------
 
@@ -840,17 +897,33 @@ prow_leg <- plot_grid(legend_b, prow, ncol = 1, rel_heights = c(.1, 1))
 
 final <- ggpubr::annotate_figure(
   prow_leg,
-  bottom = ggpubr::text_grob("Time since alloSCT (months)", hjust = 0.5)
+  bottom = ggpubr::text_grob("Time since alloSCT (months)", hjust = 0.5,
+                             family = "Roboto Condensed")
 )
 
 
-png(
-  filename = here("./analysis/figures/marginals-zoomed.png"),
-  width = 6.5, height = 8,
-  units = "in", res = 300
+ggsave(
+  plot = final,
+  here("analysis/figures/figure03.pdf"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.2,
+  units = "mm",
+  width = 180,
+  height = 200, # width 6.5 by  height 8 in originally
+  device = cairo_pdf
 )
-final
-dev.off()
+
+ggsave(
+  plot = final,
+  here("analysis/figures/figure03.eps"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.2,
+  units = "mm",
+  width = 180,
+  height = 200,
+  device = cairo_ps
+)
+
 
 
 
