@@ -1,7 +1,7 @@
 # Reproducing manuscript figures ------------------------------------------
 
-# This will become a separate rmd file
 
+# This will become a separate rmd file
 source(here::here("packages.R"))
 
 # Global plots theme + settings
@@ -133,6 +133,16 @@ ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
   ) +
   coord_cartesian(xlim = c(0, 7.5)) +
   geom_line(aes(y = curr_val_value), linewidth = 1, col = colrs[[6]]) # indivdual fits
+
+# USE SWITCH(...)
+ggsave(
+  here("analysis/figures/figure02.jpeg"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.8,
+  units = "mm",
+  width = 180,
+  height = 110
+)
 
 # Figure 2 (later to save as part of pipeline)
 ggsave(
@@ -342,6 +352,15 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
     linewidth = 0.75,
     arrow = arrow(length = unit(0.025, "npc"), type = "open")
   )
+
+ggsave(
+  here("analysis/figures/figure04.jpeg"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.8,
+  units = "mm",
+  width = 180,
+  height = 110
+)
 
 ggsave(
   here("analysis/figures/figure04.pdf"), # also to eps/tiff?
@@ -585,6 +604,16 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
     values = c(colrs[[1]], colrs[[6]], colrs[[4]])
   )
 
+
+ggsave(
+  here("analysis/figures/figure05.jpeg"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.5,
+  units = "mm",
+  width = 180,
+  height = 140
+)
+
 ggsave(
   here("analysis/figures/figure05.pdf"), # also to eps/tiff?
   dpi = 300,
@@ -717,6 +746,15 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
   scale_color_manual(
     values = c(colrs[[1]], colrs[[6]], colrs[[4]])
   )
+
+ggsave(
+  here("analysis/figures/figure06.jpeg"), # also to eps/tiff?
+  dpi = 300,
+  scale = 1.5,
+  units = "mm",
+  width = 180,
+  height = 90
+)
 
 ggsave(
   here("analysis/figures/figure06.pdf"), # also to eps/tiff?
@@ -901,6 +939,16 @@ final <- ggpubr::annotate_figure(
                              family = "Roboto Condensed")
 )
 
+
+ggsave(
+  plot = final,
+  here("analysis/figures/figure03.jpeg"),
+  dpi = 300,
+  scale = 1.2,
+  units = "mm",
+  width = 180,
+  height = 200
+)
 
 ggsave(
   plot = final,
