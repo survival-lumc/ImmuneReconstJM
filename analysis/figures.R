@@ -58,7 +58,6 @@ tar_load(
 source("R/facet_zoom2.R")
 source("R/modelling-helpers.R")
 source("R/plotting-helpers.R")
-source("R/summarising-helpers.R")
 
 # Load data
 dat_wide_pre <- NMA_preDLI_datasets$wide

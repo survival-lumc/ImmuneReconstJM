@@ -1,0 +1,438 @@
+{
+  "R": {
+    "Version": "4.2.1",
+    "Repositories": [
+      {
+        "Name": "CRAN",
+        "URL": "https://cran.rstudio.com/"
+      }
+    ]
+  },
+  "Packages": {
+    "JM": {
+      "Source": "Repository",
+      "Package": "JM",
+      "Version": "1.5-2",
+      "Repository": "CRAN"
+    },
+    "Manu": {
+      "Source": "GitHub",
+      "Package": "Manu",
+      "Version": "0.0.2",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "Manu",
+      "RemoteUsername": "G-Thomson",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "cc85db6566947851a251ff8af185c00f9a2a35b5"
+    },
+    "R6": {
+      "Source": "Repository",
+      "Package": "R6",
+      "Version": "2.5.1",
+      "Repository": "CRAN"
+    },
+    "RColorBrewer": {
+      "Source": "Repository",
+      "Package": "RColorBrewer",
+      "Version": "1.1-3",
+      "Repository": "CRAN"
+    },
+    "Rcpp": {
+      "Source": "Repository",
+      "Package": "Rcpp",
+      "Version": "1.0.9",
+      "Repository": "CRAN"
+    },
+    "RcppEigen": {
+      "Source": "Repository",
+      "Package": "RcppEigen",
+      "Version": "0.3.3.9.3",
+      "Repository": "CRAN"
+    },
+    "Rttf2pt1": {
+      "Source": "Repository",
+      "Package": "Rttf2pt1",
+      "Version": "1.3.11",
+      "Repository": "CRAN"
+    },
+    "SQUAREM": {
+      "Source": "Repository",
+      "Package": "SQUAREM",
+      "Version": "2021.1",
+      "Repository": "CRAN"
+    },
+    "backports": {
+      "Source": "Repository",
+      "Package": "backports",
+      "Version": "1.4.1",
+      "Repository": "CRAN"
+    },
+    "base64url": {
+      "Source": "Repository",
+      "Package": "base64url",
+      "Version": "1.4",
+      "Repository": "CRAN"
+    },
+    "callr": {
+      "Source": "Repository",
+      "Package": "callr",
+      "Version": "3.7.3",
+      "Repository": "CRAN"
+    },
+    "cli": {
+      "Source": "Repository",
+      "Package": "cli",
+      "Version": "3.4.1",
+      "Repository": "CRAN"
+    },
+    "colorspace": {
+      "Source": "Repository",
+      "Package": "colorspace",
+      "Version": "2.0-3",
+      "Repository": "CRAN"
+    },
+    "cowplot": {
+      "Source": "Repository",
+      "Package": "cowplot",
+      "Version": "1.1.1",
+      "Repository": "CRAN"
+    },
+    "cpp11": {
+      "Source": "Repository",
+      "Package": "cpp11",
+      "Version": "0.4.3",
+      "Repository": "CRAN"
+    },
+    "data.table": {
+      "Source": "Repository",
+      "Package": "data.table",
+      "Version": "1.14.6",
+      "Repository": "CRAN"
+    },
+    "digest": {
+      "Source": "Repository",
+      "Package": "digest",
+      "Version": "0.6.30",
+      "Repository": "CRAN"
+    },
+    "dplyr": {
+      "Source": "Repository",
+      "Package": "dplyr",
+      "Version": "1.0.10",
+      "Repository": "CRAN"
+    },
+    "evaluate": {
+      "Source": "Repository",
+      "Package": "evaluate",
+      "Version": "0.18",
+      "Repository": "CRAN"
+    },
+    "extrafont": {
+      "Source": "Repository",
+      "Package": "extrafont",
+      "Version": "0.18",
+      "Repository": "CRAN"
+    },
+    "extrafontdb": {
+      "Source": "Repository",
+      "Package": "extrafontdb",
+      "Version": "1.0",
+      "Repository": "CRAN"
+    },
+    "fansi": {
+      "Source": "Repository",
+      "Package": "fansi",
+      "Version": "1.0.3",
+      "Repository": "CRAN"
+    },
+    "farver": {
+      "Source": "Repository",
+      "Package": "farver",
+      "Version": "2.1.1",
+      "Repository": "CRAN"
+    },
+    "fs": {
+      "Source": "Repository",
+      "Package": "fs",
+      "Version": "1.5.2",
+      "Repository": "CRAN"
+    },
+    "future.apply": {
+      "Source": "Repository",
+      "Package": "future.apply",
+      "Version": "1.10.0",
+      "Repository": "CRAN"
+    },
+    "future.callr": {
+      "Source": "Repository",
+      "Package": "future.callr",
+      "Version": "0.8.0",
+      "Repository": "CRAN"
+    },
+    "future": {
+      "Source": "Repository",
+      "Package": "future",
+      "Version": "1.29.0",
+      "Repository": "CRAN"
+    },
+    "generics": {
+      "Source": "Repository",
+      "Package": "generics",
+      "Version": "0.1.3",
+      "Repository": "CRAN"
+    },
+    "ggforce": {
+      "Source": "Repository",
+      "Package": "ggforce",
+      "Version": "0.3.4",
+      "Repository": "CRAN"
+    },
+    "ggplot2": {
+      "Source": "Repository",
+      "Package": "ggplot2",
+      "Version": "3.4.0",
+      "Repository": "CRAN"
+    },
+    "globals": {
+      "Source": "Repository",
+      "Package": "globals",
+      "Version": "0.16.1",
+      "Repository": "CRAN"
+    },
+    "glue": {
+      "Source": "Repository",
+      "Package": "glue",
+      "Version": "1.6.2",
+      "Repository": "CRAN"
+    },
+    "gtable": {
+      "Source": "Repository",
+      "Package": "gtable",
+      "Version": "0.3.1",
+      "Repository": "CRAN"
+    },
+    "here": {
+      "Source": "Repository",
+      "Package": "here",
+      "Version": "1.0.1",
+      "Repository": "CRAN"
+    },
+    "highr": {
+      "Source": "Repository",
+      "Package": "highr",
+      "Version": "0.9",
+      "Repository": "CRAN"
+    },
+    "igraph": {
+      "Source": "Repository",
+      "Package": "igraph",
+      "Version": "1.3.5",
+      "Repository": "CRAN"
+    },
+    "isoband": {
+      "Source": "Repository",
+      "Package": "isoband",
+      "Version": "0.2.6",
+      "Repository": "CRAN"
+    },
+    "knitr": {
+      "Source": "Repository",
+      "Package": "knitr",
+      "Version": "1.40",
+      "Repository": "CRAN"
+    },
+    "labeling": {
+      "Source": "Repository",
+      "Package": "labeling",
+      "Version": "0.4.2",
+      "Repository": "CRAN"
+    },
+    "lava": {
+      "Source": "Repository",
+      "Package": "lava",
+      "Version": "1.7.0",
+      "Repository": "CRAN"
+    },
+    "lifecycle": {
+      "Source": "Repository",
+      "Package": "lifecycle",
+      "Version": "1.0.3",
+      "Repository": "CRAN"
+    },
+    "listenv": {
+      "Source": "Repository",
+      "Package": "listenv",
+      "Version": "0.8.0",
+      "Repository": "CRAN"
+    },
+    "magrittr": {
+      "Source": "Repository",
+      "Package": "magrittr",
+      "Version": "2.0.3",
+      "Repository": "CRAN"
+    },
+    "mstate": {
+      "Source": "Repository",
+      "Package": "mstate",
+      "Version": "0.3.2",
+      "Repository": "CRAN"
+    },
+    "munsell": {
+      "Source": "Repository",
+      "Package": "munsell",
+      "Version": "0.5.0",
+      "Repository": "CRAN"
+    },
+    "numDeriv": {
+      "Source": "Repository",
+      "Package": "numDeriv",
+      "Version": "2016.8-1.1",
+      "Repository": "CRAN"
+    },
+    "parallelly": {
+      "Source": "Repository",
+      "Package": "parallelly",
+      "Version": "1.32.1",
+      "Repository": "CRAN"
+    },
+    "pillar": {
+      "Source": "Repository",
+      "Package": "pillar",
+      "Version": "1.8.1",
+      "Repository": "CRAN"
+    },
+    "pkgconfig": {
+      "Source": "Repository",
+      "Package": "pkgconfig",
+      "Version": "2.0.3",
+      "Repository": "CRAN"
+    },
+    "polyclip": {
+      "Source": "Repository",
+      "Package": "polyclip",
+      "Version": "1.10-4",
+      "Repository": "CRAN"
+    },
+    "processx": {
+      "Source": "Repository",
+      "Package": "processx",
+      "Version": "3.8.0",
+      "Repository": "CRAN"
+    },
+    "prodlim": {
+      "Source": "Repository",
+      "Package": "prodlim",
+      "Version": "2019.11.13",
+      "Repository": "CRAN"
+    },
+    "progressr": {
+      "Source": "Repository",
+      "Package": "progressr",
+      "Version": "0.11.0",
+      "Repository": "CRAN"
+    },
+    "ps": {
+      "Source": "Repository",
+      "Package": "ps",
+      "Version": "1.7.2",
+      "Repository": "CRAN"
+    },
+    "rlang": {
+      "Source": "Repository",
+      "Package": "rlang",
+      "Version": "1.0.6",
+      "Repository": "CRAN"
+    },
+    "rprojroot": {
+      "Source": "Repository",
+      "Package": "rprojroot",
+      "Version": "2.0.3",
+      "Repository": "CRAN"
+    },
+    "scales": {
+      "Source": "Repository",
+      "Package": "scales",
+      "Version": "1.2.1",
+      "Repository": "CRAN"
+    },
+    "stringi": {
+      "Source": "Repository",
+      "Package": "stringi",
+      "Version": "1.7.8",
+      "Repository": "CRAN"
+    },
+    "stringr": {
+      "Source": "Repository",
+      "Package": "stringr",
+      "Version": "1.5.0",
+      "Repository": "CRAN"
+    },
+    "tarchetypes": {
+      "Source": "Repository",
+      "Package": "tarchetypes",
+      "Version": "0.7.2",
+      "Repository": "CRAN"
+    },
+    "targets": {
+      "Source": "Repository",
+      "Package": "targets",
+      "Version": "0.14.0",
+      "Repository": "CRAN"
+    },
+    "tibble": {
+      "Source": "Repository",
+      "Package": "tibble",
+      "Version": "3.1.8",
+      "Repository": "CRAN"
+    },
+    "tidyselect": {
+      "Source": "Repository",
+      "Package": "tidyselect",
+      "Version": "1.2.0",
+      "Repository": "CRAN"
+    },
+    "tweenr": {
+      "Source": "Repository",
+      "Package": "tweenr",
+      "Version": "2.0.2",
+      "Repository": "CRAN"
+    },
+    "utf8": {
+      "Source": "Repository",
+      "Package": "utf8",
+      "Version": "1.2.2",
+      "Repository": "CRAN"
+    },
+    "vctrs": {
+      "Source": "Repository",
+      "Package": "vctrs",
+      "Version": "0.5.1",
+      "Repository": "CRAN"
+    },
+    "viridisLite": {
+      "Source": "Repository",
+      "Package": "viridisLite",
+      "Version": "0.4.1",
+      "Repository": "CRAN"
+    },
+    "withr": {
+      "Source": "Repository",
+      "Package": "withr",
+      "Version": "2.5.0",
+      "Repository": "CRAN"
+    },
+    "xfun": {
+      "Source": "Repository",
+      "Package": "xfun",
+      "Version": "0.35",
+      "Repository": "CRAN"
+    },
+    "yaml": {
+      "Source": "Repository",
+      "Package": "yaml",
+      "Version": "2.3.6",
+      "Repository": "CRAN"
+    }
+  }
+}
