@@ -17,6 +17,7 @@ get_preDLI_datasets <- function(dat_merged,
     "CD4_abs_log",
     "CD8_abs_log",
     "CD3_abs_log",
+    "NK_abs_log",
     "intSCT2_7",
     "endpoint7",
     "endpoint7_s",
@@ -213,6 +214,7 @@ get_postDLI_datasets <- function(dat_merged,
     "CD4_abs_log",
     "CD8_abs_log",
     "CD3_abs_log",
+    "NK_abs_log",
     "intDLI1",
     "intSCT2_7",
     "endpoint7",
@@ -333,4 +335,59 @@ run_postDLI_cox <- function(form, dat_wide, ...) {
   mod_comp <- do.call(what = survival::coxph, args = c(main_args, extra_args))
 
   return(mod_comp)
+}
+
+
+# As part of supplementary tdc analyses
+make_tdc_dataset <- function(dat_wide,
+                             dat_long) {
+
+  # Follow survival::tmerge workflow to define the tdc
+  temp <- tmerge(
+    data1 = dat_wide,
+    data2 = dat_wide,
+    id = IDAA,
+    gvhd = event(endpoint7, as.numeric(endpoint7_s == "gvhd")),
+    relapse = event(endpoint7, as.numeric(endpoint7_s == "relapse")),
+    other_nrf = event(endpoint7, as.numeric(endpoint7_s == "other_nrf"))
+  )
+
+  value_time_zero <- log(0.5)
+  temp2 <- tmerge(
+    data1 = temp,
+    data2 = dat_long,
+    id = IDAA,
+    log_CD3 = tdc(intSCT2_7, CD3_abs_log, init = value_time_zero),
+    log_CD4 = tdc(intSCT2_7, CD4_abs_log, init = value_time_zero),
+    log_CD8 = tdc(intSCT2_7, CD8_abs_log, init = value_time_zero),
+    log_NK = tdc(intSCT2_7, NK_abs_log, init = value_time_zero)
+  )
+
+  # Here we now mimic the msprep + expand.covs workflow:
+
+  # Define endpoint and variables to 'expand' to transition-specific covariates
+  setDT(temp2)
+  endpoints <- c("gvhd", "relapse", "other_nrf")
+  vars_expand <- c(
+    "ATG",
+    "hirisk",
+    paste0("log_", c(paste0("CD", c(3, 4, 8)), "NK"))
+  )
+
+  # Put data in long format (length of n * number of competing events)
+  dat_tdcs <- melt(
+    data = temp2,
+    measure.vars = endpoints,
+    value.name = "status",
+    variable.name = "trans"
+  )
+
+  # Add transition-specific covariates
+  for (i in seq_along(vars_expand)) {
+    for (j in seq_along(endpoints))
+      dat_tdcs[, paste0(vars_expand[i], ".", j) := (as.numeric(get(vars_expand[i])) - 1L) *
+                 (trans == endpoints[j])]
+  }
+
+  return(dat_tdcs)
 }

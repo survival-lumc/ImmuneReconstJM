@@ -1121,3 +1121,28 @@ legend(
   inset = c(0.05, 0)
 )
 dev.off()
+
+
+
+# NK cells plots ----------------------------------------------------------
+
+dat_long_NK <- tar_read(dat_merged)[TCD2 %in% c("NMA RD: ALT", "UD: ALT + ATG")]
+dat_long_NK[, endpoint7_s := factor(
+  x = endpoint7_s,
+  levels = c(
+    "censored",
+    "non-relapse failure: GvHD",
+    "relapse",
+    "non-relapse failure: other",
+    "7 days after cellular intervention"
+  ),
+  labels = c("cens", "gvhd", "relapse", "other_nrf", "cens")
+)]
+
+ggplot(dat_long_NK, aes(intSCT2_7, NK_abs_log, group = IDAA)) +
+  geom_line(show.legend = FALSE, linewidth = 1, alpha = 0.5, col = colrs[[6]]) +
+  labs(x = "Time since alloSCT (months)", y = expression(paste("NK cell count (x10"^"6","/l)"))) +
+  log_axis_scales +
+  #facet_grid(donor ~ endpoint7_s) +
+  coord_cartesian(xlim = c(0, 6))
+  #coord_cartesian(ylim = log(c(0.1, 3000)))
