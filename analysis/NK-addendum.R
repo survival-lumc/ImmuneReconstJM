@@ -35,9 +35,14 @@ theme_set(
 # Start -------------------------------------------------------------------
 
 
-tar_load(NMA_preDLI_datasets)
+tar_load(
+  c(
+    NMA_preDLI_datasets,
+    preDLI_tdc_dataset,
+    preDLI_JM_value_corr_NK
+  )
+)
 dat_long_NK <- NMA_preDLI_datasets$long
-
 dat_long_NK[, "endpoint_lab" := factor(
   fcase(
     endpoint7_s == "cens", "Censored",
@@ -47,7 +52,6 @@ dat_long_NK[, "endpoint_lab" := factor(
   ),
   levels = c("Censored", "GvHD", "Relapse", "Other failure")
 )]
-
 
 ggplot(dat_long_NK, aes(intSCT2_7, NK_abs_log, group = IDAA)) +
   geom_line(show.legend = FALSE, linewidth = 1, alpha = 0.5, col = colrs[[6]]) +
@@ -63,13 +67,6 @@ ggsave(
   height = 8
 )
 
-mod_long <- run_preDLI_longitudinal(
-  cell_line = "NK_abs_log",
-  form_fixed = "ns(intSCT2_7, 3) * hirisk * ATG + CMV_PD",
-  form_random = ~ 0 + ns(intSCT2_7, 3) | IDAA,
-  dat = dat_long_NK
-)
-
 newdat_preDLI <- expand.grid(
   "ATG" = levels(dat_long_NK$ATG),
   "CMV_PD" = levels(dat_long_NK$CMV_PD),
@@ -77,40 +74,9 @@ newdat_preDLI <- expand.grid(
   "intSCT2_7" = seq(0, 6, by = 0.05)
 )
 
-cbind(
-  newdat_preDLI,
-  preds = predict(mod_long, level = 0L, newdata = newdat_preDLI)
-) |>
-  ggplot(aes(intSCT2_7, preds, col = ATG)) +
-  log_axis_scales +
-  geom_line(aes(linetype = hirisk), linewidth = 1.5) +
-  facet_wrap(~ CMV_PD)
-
-mod_cox <- run_preDLI_cox(
-  form = Surv(time, status) ~
-    ATG.1 + hirisk.1 + # GVHD
-    ATG.2 + hirisk.2 + # Relapse
-    ATG.3 + # NRF other
-    strata(trans),
-  dat_wide = NMA_preDLI_datasets$wide
-)
-
-NK_JM <- jointModel(
-  lmeObject = mod_long,
-  survObject = mod_cox,
-  CompRisk = TRUE,
-  method = "spline-PH-aGH",
-  timeVar = "intSCT2_7",
-  parameterization = "value",
-  interFact = list("value" = ~ strata(trans) - 1),
-  iter.qN = 1000L,
-  lng.in.kn = tar_read(preDLI_basehaz_knots),
-  numeriDeriv = "cd",
-  eps.Hes = 1e-04,
-  verbose = TRUE
-)
-
+NK_JM <- preDLI_JM_value_corr_NK
 summary(NK_JM)
+round(exp(confint(NK_JM, parm = "Event")), 3)
 
 predict(
   NK_JM,
@@ -145,9 +111,53 @@ predict(
   ) +
   facet_wrap(~ CMV_PD)
 
+confin
+
 ggsave(
   here("analysis/figures/preDLI_NK_marginals-test.png"),
   dpi = 300,
   width = 9,
   height = 5
 )
+
+
+# TDC bit -----------------------------------------------------------------
+
+
+# Compare results with preDLI_Cox - it's the same
+mod_standard <- coxph(
+  form = Surv(tstart, tstop, status) ~
+    ATG.1 + hirisk.1 + # GVHD
+    ATG.2 + hirisk.2 + # Relapse
+    ATG.3 + # NRF other
+    strata(trans),
+  data = preDLI_tdc_dataset
+)
+coef(tar_read(preDLI_cox))
+coef(mod_standard)
+
+# Mod full tings - num events = 20, 22, 33
+endpoints <- c("gvhd", "relapse", "other_nrf")
+cell_vars <- as.character(
+  outer(
+    X = paste0("log_", c("CD4", "NK")), #"CD8"
+    Y = seq_along(endpoints),
+    FUN = paste,
+    sep = "."
+  )
+)
+cell_vars_rhs <- reformulate(
+  #termlabels = c(cell_vars, "strata(trans)"),
+  #termlabels = c(paste0("ATG.", 1:3), cell_vars, "strata(trans)"),
+  termlabels = c(".", cell_vars),
+  response = "."
+)
+cell_vars_rhs
+
+mod_full <- update(mod_standard, cell_vars_rhs)
+forestmodel::forest_model(
+  mod_full,
+  exponentiate = TRUE,
+  format_options = forestmodel::forest_model_format_options(point_size = 2, text_size = 4)
+)
+

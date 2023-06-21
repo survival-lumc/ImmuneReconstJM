@@ -72,7 +72,7 @@ tar_load(c(NMA_preDLI_datasets, dat_merged))
 ```
 
 \begin{center}
-\textbf{Joint models quantify associations between T-cell kinetics and allo-immunological events after allogeneic stem cell transplantation and subsequent donor lymphocyte infusion}
+\textbf{Joint models quantify associations between immune cell kinetics and allo-immunological events after allogeneic stem cell transplantation and subsequent donor lymphocyte infusion}
 \end{center}
 
 Eva A.S. Koster, Edouard F. Bonneville, Peter A. von dem Borne, Peter van Balen, Erik W.A. Marijt, Jennifer M.L. Tjon, Tjeerd J.F. Snijders, Daniëlle van Lammeren, Hendrik Veelken, Hein Putter, J.H. Frederik Falkenburg, Constantijn J.M. Halkes, Liesbeth C. de Wreede

@@ -9,3 +9,10 @@ data-raw/
 data/
 _targets/
 analysis/past-reports/
+analysis/figures/
+_targets.html
+analysis/statistical-supplement/statistical-supplement_files/
+analysis/statistical-supplement/logo1-eps-converted-to.pdf
+*.sty
+*.tex
+*.log
