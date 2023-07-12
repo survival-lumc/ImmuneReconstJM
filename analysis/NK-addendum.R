@@ -111,7 +111,7 @@ predict(
   ) +
   facet_wrap(~ CMV_PD)
 
-confin
+#confin
 
 ggsave(
   here("analysis/figures/preDLI_NK_marginals-test.png"),
@@ -119,6 +119,88 @@ ggsave(
   width = 9,
   height = 5
 )
+
+
+
+# Try new figure ----------------------------------------------------------
+
+predict(
+  NK_JM,
+  newdata = newdat_preDLI,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+) |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = interaction(CMV_PD, hirisk))) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = confint_col,
+    alpha = confint_alpha,
+    col = NA
+  ) +
+  log_axis_scales +
+  geom_line(aes(linetype = hirisk, col = CMV_PD), size = 1.5) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("NK cell count (x10"^"6","/l)")),
+    linetype = "ITT",
+    col = "CMV"
+  ) +
+  scale_color_manual(
+    labels = c("-/-", "other P/D"),
+    values = c(colrs[[6]], colrs[[1]])
+  ) +
+  scale_linetype_manual(
+    labels = c("No", "Yes"),
+    values = c("solid", "dotdash")
+  ) +
+  facet_wrap(~ ATG)
+
+# or
+predict(
+  NK_JM,
+  newdata = newdat_preDLI,
+  type = "Marginal",
+  idVar = "IDAA",
+  returnData = TRUE,
+  interval = "confidence"
+) |>
+  ggplot(aes(x = intSCT2_7, y = pred, group = CMV_PD)) +
+  geom_ribbon(
+    aes(ymin = low, ymax = upp),
+    fill = confint_col,
+    alpha = confint_alpha,
+    col = NA
+  ) +
+  log_axis_scales +
+  geom_line(aes(linetype = CMV_PD, col = CMV_PD), size = 1.5) +
+  labs(
+    x = "Time since alloSCT (months)",
+    y = expression(paste("NK cell count (x10"^"6","/l)")),
+    linetype = "CMV",
+    col = "CMV"
+  ) +
+  scale_color_manual(
+    labels = c("-/-", "other P/D"),
+    values = c(colrs[[6]], colrs[[1]])
+  ) +
+  scale_linetype_manual(
+    labels = c("-/-", "other P/D"),
+    values = c("solid", "dotdash")
+  ) +
+  facet_grid(
+    hirisk ~ ATG,
+    labeller = as_labeller(
+      c(
+        "no" = "ITT: no",
+        "yes" = "ITT: yes",
+        "RD" = "RD",
+        "UD(+ATG)" = "UD(+ATG)"
+      )
+    )
+  )
+
 
 
 # TDC bit -----------------------------------------------------------------
