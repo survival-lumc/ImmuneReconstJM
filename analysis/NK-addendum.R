@@ -98,7 +98,7 @@ predict(
   labs(
     x = "Time since alloSCT (months)",
     y = expression(paste("NK cell count (x10"^"6","/l)")),
-    linetype = "ITT",
+    linetype = "Risk group",
     col = "Donor type"
   ) +
   scale_color_manual(
@@ -106,10 +106,15 @@ predict(
     values = c(colrs[[6]], colrs[[1]])
   ) +
   scale_linetype_manual(
-    labels = c("No", "Yes"),
+    labels = c("Non-high risk", "High risk"),
     values = c("solid", "dotdash")
   ) +
-  facet_wrap(~ CMV_PD)
+  facet_wrap(
+    ~ CMV_PD,
+    labeller = as_labeller(
+      c("-/-" = "-/-", "other P/D" = "Other")
+    )
+  )
 
 #confin
 
@@ -118,6 +123,26 @@ ggsave(
   dpi = 300,
   width = 9,
   height = 5
+)
+
+ggsave(
+  here("analysis/figures/figure07.pdf"), # also to eps/tiff?
+  dpi = 300,
+  #scale = 1.8,
+  #units = "mm",
+  width = 9,
+  height = 5,
+  device = cairo_pdf
+)
+
+ggsave(
+  here("analysis/figures/figure07.eps"),
+  dpi = 300,
+  #scale = 1.8,
+  #units = "mm",
+  width = 9,
+  height = 5,
+  device = cairo_ps
 )
 
 

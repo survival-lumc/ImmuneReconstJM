@@ -1,6 +1,6 @@
 # Joint models quantify associations between immune cell kinetics and allo-immunological events after allogeneic stem cell transplantation and subsequent donor lymphocyte infusion
 
-[![DOI:10.3389/fimmu.2023.1208814](https://zenodo.org/badge/DOI/10.1177/09622802221102623.svg)](https://doi.org/10.3389/fimmu.2023.1208814)
+[![DOI:10.3389/fimmu.2023.1208814](https://zenodo.org/badge/DOI/10.3389/fimmu.2023.1208814.svg)](https://doi.org/10.3389/fimmu.2023.1208814)
 
 **Authors**: Eva A. S. Koster, Edouard F. Bonneville, Peter A. von dem Borne, Peter van Balen, Erik W. A. Marijt, Jennifer M. L. Tjon, Tjeerd J. F. Snijders, Daniëlle van Lammeren, Hendrik Veelken, Hein Putter, J. H. Frederik Falkenburg, Constantijn J. M. Halkes, Liesbeth C. de Wreede
 

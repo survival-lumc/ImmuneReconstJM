@@ -131,7 +131,13 @@ ggplot(dat_long_pre[IDAA %in% IDAA_subs_pre], aes(intSCT2_7, CD3_abs_log)) +
     inherit.aes = FALSE
   ) +
   coord_cartesian(xlim = c(0, 7.5)) +
-  geom_line(aes(y = curr_val_value), linewidth = 1, col = colrs[[6]]) # indivdual fits
+  geom_line(aes(y = curr_val_value), linewidth = 1, col = colrs[[6]]) + # indivdual fits
+  theme_light(base_size = 16, base_family = global_font) +
+  theme(
+    strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
+    strip.text = element_text(colour = 'white'),
+    plot.margin = margin(0, 0, 0, 0)
+  )
 
 # USE SWITCH(...)
 ggsave(
@@ -149,8 +155,8 @@ ggsave(
   dpi = 300,
   scale = 1.8,
   units = "mm",
-  width = 180,
-  height = 110,
+  width = 185,
+  height = 120,
   device = cairo_pdf
 )
 
@@ -159,8 +165,8 @@ ggsave(
   dpi = 300,
   scale = 1.8,
   units = "mm",
-  width = 180,
-  height = 110,
+  width = 185,
+  height = 120,
   device = cairo_ps
 )
 
@@ -349,7 +355,13 @@ rbindlist(marg_preds_postDLI, idcol = "cell_line") |>
     data = postDLI_last_wide,
     aes(y = `-/-`, yend = `other P/D`, x = intDLI1 + 0.1, xend = intDLI1 + 0.1),
     linewidth = 0.75,
-    arrow = arrow(length = unit(0.025, "npc"), type = "open")
+    arrow = arrow(length = unit(0.035, "npc"), type = "open")
+  ) +
+  theme_light(base_size = 16, base_family = global_font) +
+  theme(
+    strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
+    strip.text = element_text(colour = 'white'),
+    plot.margin = margin(0, 0, 0, 0)
   )
 
 ggsave(
@@ -364,7 +376,7 @@ ggsave(
 ggsave(
   here("analysis/figures/figure04.pdf"), # also to eps/tiff?
   dpi = 300,
-  scale = 1.8,
+  scale = 1.6,
   units = "mm",
   width = 180,
   height = 110, # 8 by 8 originally
@@ -374,10 +386,10 @@ ggsave(
 ggsave(
   here("analysis/figures/figure04.eps"), # also to eps/tiff?
   dpi = 300,
-  scale = 1.8,
+  scale = 1.6,
   units = "mm",
   width = 180,
-  height = 110, # 8 by 8 originally
+  height = 110,
   device = cairo_ps
 )
 
@@ -569,7 +581,7 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
   geom_hline(alpha = 0, aes(col = subset, yintercept = 1),size = 1.1)+
   geom_text(
     aes(x = param2, label = label, group = subset, hjust = ifelse(HR >= 1, 0, 1)),
-    position = position_dodge(width = 0.8), size = 3, color = "black", family = "Roboto Condensed"
+    position = position_dodge(width = 0.8), size = 3.5, color = "black", family = "Roboto Condensed"
   )+ #grey40
   ggplot2::scale_y_continuous(
     name = "Hazard ratio (95% CI)",
@@ -591,17 +603,25 @@ ggplot(data = res2.2, aes(x = param2, y = HR)) +
   geom_hline(yintercept = 1, linetype = "dotted") +
   #facet_wrap(~endpoint,scales = "free_y",ncol=1, strip.position = "right")+
   facet_grid(rows = "endpoint", scales = "free", space = "free")+
+  #theme(
+  #
+  #) +
+  scale_color_manual(
+    values = c(colrs[[1]], colrs[[6]], colrs[[4]])
+  ) +
+  theme_light(base_size = 16, base_family = global_font) +
   theme(
+    strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
+    #strip.text = element_text(colour = 'white'),
+    plot.margin = margin(0, 0, 0, 0),
     axis.title.y = element_blank(),
     panel.spacing = unit(0.05, "cm"),
     axis.text = element_text(color = "black", size = 11),
-    legend.text = element_text(size = 11), legend.title = element_text(size = 11),
-    axis.title = element_text(size = 12), strip.text = element_text(size = 11),
+    legend.text = element_text(size = 13), legend.title = element_text(size = 13),
+    axis.title = element_text(size = 14), strip.text = element_text(size = 12),
     panel.grid.major.y = element_blank()
-  ) +
-  scale_color_manual(
-    values = c(colrs[[1]], colrs[[6]], colrs[[4]])
   )
+
 
 
 ggsave(
@@ -711,7 +731,7 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
   ) +
   geom_hline(alpha = 0, aes(col = subset, yintercept = 1), size = 1.1)+
   geom_text(aes(x = param2,label = label, group = subset, hjust = ifelse(HR >= 1, 0, 1)),
-            position = position_dodge(width = 0.8), size = 3, color = "black",
+            position = position_dodge(width = 0.8), size = 3.5, color = "black",
             family = "Roboto Condensed")+ #grey40
   ggplot2::scale_y_continuous(
     name = "Hazard ratio (95% CI)",
@@ -735,12 +755,15 @@ ggplot(data = res3.2, aes(x = param2, y = HR)) +
   #facet_wrap(~endpoint,scales = "free_y",ncol=1, strip.position = "right")+
   facet_grid(rows = "endpoint",scales = "free",space = "free")+
   theme(
+    strip.background = element_rect(fill = colrs[[2]], colour = "transparent"),
+    #strip.text = element_text(colour = 'white'),
+    plot.margin = margin(0, 0, 0, 0),
     axis.title.y = element_blank(),
-    panel.spacing = unit(0.05,"cm"),
-    axis.text = element_text(color="black", size=11),
-    legend.text = element_text(size = 11),legend.title=element_text(size = 11),
-    axis.title = element_text(size = 12), strip.text = element_text(size = 11),
-    panel.grid.major.y = element_blank(), plot.margin = margin(l=0)
+    panel.spacing = unit(0.05, "cm"),
+    axis.text = element_text(color = "black", size = 11),
+    legend.text = element_text(size = 13), legend.title = element_text(size = 13),
+    axis.title = element_text(size = 14), strip.text = element_text(size = 12),
+    panel.grid.major.y = element_blank()
   ) +
   scale_color_manual(
     values = c(colrs[[1]], colrs[[6]], colrs[[4]])
@@ -777,6 +800,9 @@ ggsave(
 
 
 # Facet zoom customed -----------------------------------------------------
+
+# Need to make sure particular version of ggforce used..
+
 
 zoom_areas <- list(
   "CD4" = list("x" = c(2, 6), y = c(log(10), log(200))),
